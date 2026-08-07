@@ -109,13 +109,12 @@ export default function MyCart({ userData }: MyCartProps) {
         }
 
         if (data && data.length > 0) {
-          // The data from Supabase returns vehicles as a single object
           const formattedItems: GarageItem[] = data.map((item: any) => ({
             id: item.id,
             user_id: item.user_id,
             vehicle_id: item.vehicle_id,
             created_at: item.created_at,
-            vehicles: item.vehicles // This should be a single object
+            vehicles: item.vehicles
           }))
           setItems(formattedItems)
         } else {
