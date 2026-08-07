@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { Filter, Grid, List, ChevronDown, Loader2, AlertCircle, X, Sparkles, Crown, Star, Flame } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
@@ -76,7 +76,7 @@ const PROMOTION_PRIORITY = {
   none: 0
 }
 
-export default function VehiclesPage() {
+function VehiclesContent() {
   const searchParams = useSearchParams()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([])
@@ -943,5 +943,18 @@ export default function VehiclesPage() {
 
       <BottomNav />
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function VehiclesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/60">Loading vehicles...</div>
+      </div>
+    }>
+      <VehiclesContent />
+    </Suspense>
   )
 }

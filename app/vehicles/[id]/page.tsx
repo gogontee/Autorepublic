@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -100,7 +100,7 @@ const PROMOTION_PRIORITY = {
   none: 0
 }
 
-export default function VehicleDetailPage() {
+function VehicleDetailContent() {
   const params = useParams()
   const router = useRouter()
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
@@ -1211,7 +1211,7 @@ export default function VehicleDetailPage() {
                 </div>
               )}
 
-              {/* Mark as Unavailable & Report Abuse - MOBILE - With proper spacing */}
+              {/* Mark as Unavailable & Report Abuse - MOBILE */}
               {!isRemoved && (
                 <div className="lg:hidden flex flex-col gap-3 mt-4 mb-4">
                   <div className="flex gap-3">
@@ -1594,5 +1594,18 @@ export default function VehicleDetailPage() {
 
       <BottomNav />
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function VehicleDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/60">Loading vehicle details...</div>
+      </div>
+    }>
+      <VehicleDetailContent />
+    </Suspense>
   )
 }

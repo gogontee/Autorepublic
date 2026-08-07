@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { Filter, Grid, List, ChevronDown, Loader2, AlertCircle, X, Search, Menu, Car, Crown, Zap, LayoutGrid, Sparkles } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
@@ -78,7 +78,7 @@ const STORAGE_KEYS = {
   CONDITION: 'sports_condition'
 }
 
-export default function SportsPage() {
+function SportsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -743,5 +743,18 @@ export default function SportsPage() {
 
       <BottomNav />
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function SportsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/60">Loading...</div>
+      </div>
+    }>
+      <SportsContent />
+    </Suspense>
   )
 }

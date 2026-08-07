@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { Filter, Grid, List, ChevronDown, Loader2, AlertCircle, X, Search, Menu, Car, Zap, LayoutGrid, Sparkles } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
@@ -79,7 +79,7 @@ const STORAGE_KEYS = {
   CONDITION: 'luxury_condition'
 }
 
-export default function LuxuryPage() {
+function LuxuryContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -744,5 +744,18 @@ export default function LuxuryPage() {
 
       <BottomNav />
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function LuxuryPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/60">Loading...</div>
+      </div>
+    }>
+      <LuxuryContent />
+    </Suspense>
   )
 }

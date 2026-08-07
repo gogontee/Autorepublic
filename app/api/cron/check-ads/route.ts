@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase/client'
 import { checkAllAdStatuses } from '@/lib/notification-triggers'
 
+// Force dynamic rendering - prevents static generation at build time
+export const dynamic = 'force-dynamic'
+
+// Optional: Set revalidation period (in seconds)
+// export const revalidate = 3600 // Revalidate every hour
+
 export async function GET(request: NextRequest) {
   try {
     // Check if Supabase client is properly initialized
