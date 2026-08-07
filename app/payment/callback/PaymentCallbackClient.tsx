@@ -13,10 +13,11 @@ export default function PaymentCallbackClient() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
     'loading'
   )
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(
+    'Please wait while we confirm your payment...'
+  )
 
   useEffect(() => {
-    // Make sure searchParams is available
     if (!searchParams) {
       setStatus('error')
       setMessage('Invalid payment callback')
@@ -37,44 +38,88 @@ export default function PaymentCallbackClient() {
       return
     }
 
-    // Get the user ID from localStorage
-    const userId = localStorage.getItem('dashboardUserId')
+    const verifyPayment = async () => {
+      try {
+        console.log('📡 Sending payment for verification...')
 
-    // Set active dashboard tab to wallet
-    localStorage.setItem('activeDashboardTab', 'wallet')
+        const response = await fetch('/api/paystack/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            reference,
+            transactionId: transactionId || reference,
+          }),
+        })
 
-    console.log('💾 Set active tab to wallet for return')
+        const data = await response.json()
 
-    // Show success message
-    setStatus('success')
-    setMessage('Payment successful! Your wallet has been funded.')
+        console.log('📦 Verification response:', data)
 
-    // Send message to parent window if opened from popup
-    if (window.opener) {
-      window.opener.postMessage(
-        {
-          reference,
-          transactionId: transactionId || reference,
-        },
-        window.location.origin
-      )
+        if (!response.ok || !data.success) {
+          console.error('❌ Payment verification failed:', data)
+
+          setStatus('error')
+          setMessage(
+            data.error ||
+              'We could not verify your payment. Please contact support if money was deducted.'
+          )
+          return
+        }
+
+        console.log('✅ Payment successfully verified')
+
+        const userId = localStorage.getItem('dashboardUserId')
+
+        // Set dashboard to wallet tab when user returns
+        localStorage.setItem('activeDashboardTab', 'wallet')
+
+        // Show success
+        setStatus('success')
+        setMessage(
+          'Payment successful! Your wallet has been funded.'
+        )
+
+        // Notify parent window if this page was opened as a popup
+        if (window.opener) {
+          window.opener.postMessage(
+            {
+              type: 'PAYMENT_VERIFIED',
+              reference,
+              transactionId: transactionId || reference,
+            },
+            window.location.origin
+          )
+        }
+
+        // Redirect to dashboard after 3 seconds
+        const timeout = setTimeout(() => {
+          const dashboardPath = userId
+            ? `/dashboard/${userId}`
+            : '/dashboard'
+
+          router.push(dashboardPath)
+        }, 3000)
+
+        return () => clearTimeout(timeout)
+      } catch (error) {
+        console.error('❌ Payment verification request failed:', error)
+
+        setStatus('error')
+        setMessage(
+          'Unable to verify your payment. Please check your connection and try again.'
+        )
+      }
     }
 
-    // Redirect back to dashboard after 3 seconds
-    const timeout = setTimeout(() => {
-      const dashboardPath = userId
-        ? `/dashboard/${userId}`
-        : '/dashboard'
-
-      router.push(dashboardPath)
-    }, 3000)
-
-    return () => clearTimeout(timeout)
+    verifyPayment()
   }, [searchParams, router])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black px-4">
       <div className="text-center max-w-md w-full">
+
         {status === 'loading' && (
           <>
             <Loader2 className="w-12 h-12 text-white animate-spin mx-auto mb-4" />
@@ -84,7 +129,7 @@ export default function PaymentCallbackClient() {
             </h2>
 
             <p className="text-white/60 text-sm">
-              Please wait while we confirm your payment...
+              {message}
             </p>
           </>
         )}
@@ -112,7 +157,7 @@ export default function PaymentCallbackClient() {
             <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
 
             <h2 className="text-xl font-bold text-white mb-2">
-              Payment Failed
+              Payment Verification Failed
             </h2>
 
             <p className="text-white/60 text-sm">
@@ -136,6 +181,7 @@ export default function PaymentCallbackClient() {
             </button>
           </>
         )}
+
       </div>
     </div>
   )
