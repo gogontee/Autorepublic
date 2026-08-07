@@ -109,13 +109,13 @@ export default function MyCart({ userData }: MyCartProps) {
         }
 
         if (data && data.length > 0) {
-          // The data from Supabase returns vehicles as an array, but we need to handle it properly
+          // The data from Supabase returns vehicles as a single object
           const formattedItems: GarageItem[] = data.map((item: any) => ({
             id: item.id,
             user_id: item.user_id,
             vehicle_id: item.vehicle_id,
             created_at: item.created_at,
-            vehicles: item.vehicles // This should be a single object, not an array
+            vehicles: item.vehicles // This should be a single object
           }))
           setItems(formattedItems)
         } else {
@@ -267,8 +267,6 @@ export default function MyCart({ userData }: MyCartProps) {
                       location: formatLocation(vehicle.city, vehicle.country),
                       conditionLabel: getConditionLabel(vehicle.condition),
                       condition: vehicle.condition,
-                      rating: 4.5,
-                      reviews: 0,
                       car_code: vehicle.car_code || undefined,
                     }}
                     index={index}
