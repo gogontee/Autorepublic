@@ -51,6 +51,7 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+
     googleBot: {
       index: true,
       follow: true,
@@ -99,10 +100,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} bg-black text-white`}>
         <AuthProvider>
-  <GlobalRouteLoader>
-    {children}
-  </GlobalRouteLoader>
-</AuthProvider>
+          <GlobalRouteLoader>
+            {children}
+          </GlobalRouteLoader>
+        </AuthProvider>
       </body>
     </html>
   )
