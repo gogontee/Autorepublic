@@ -8,7 +8,7 @@ import StructuredData from '@/components/StructuredData'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://autorepublic.ng'),
+  metadataBase: new URL('https://www.autorepublic.ng'),
 
   title: {
     default: 'AutoRepublic — Buy & Sell Vehicles in Nigeria',
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   authors: [
     {
       name: 'AutoRepublic',
-      url: 'https://autorepublic.ng',
+      url: 'https://www.autorepublic.ng',
     },
   ],
 
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   publisher: 'AutoRepublic',
 
   alternates: {
-    canonical: 'https://autorepublic.ng',
+    canonical: 'https://www.autorepublic.ng',
   },
 
   robots: {
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_NG',
-    url: 'https://autorepublic.ng',
+    url: 'https://www.autorepublic.ng',
     siteName: 'AutoRepublic',
     title: 'AutoRepublic — Buy & Sell Vehicles in Nigeria',
     description:

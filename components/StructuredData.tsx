@@ -4,25 +4,25 @@ export default function StructuredData() {
     '@graph': [
       {
         '@type': 'Organization',
-        '@id': 'https://autorepublic.ng/#organization',
+        '@id': 'https://www.autorepublic.ng/#organization',
         name: 'AutoRepublic',
-        url: 'https://autorepublic.ng',
+        url: 'https://www.autorepublic.ng',
         logo: {
           '@type': 'ImageObject',
-          url: 'https://autorepublic.ng/autorepublic.svg',
+          url: 'https://www.autorepublic.ng/autorepublic.svg',
         },
         description:
           'AutoRepublic is a Nigerian vehicle marketplace for buying and selling used, foreign-used, brand-new, electric, luxury and other vehicles.',
       },
       {
         '@type': 'WebSite',
-        '@id': 'https://autorepublic.ng/#website',
-        url: 'https://autorepublic.ng',
+        '@id': 'https://www.autorepublic.ng/#website',
+        url: 'https://www.autorepublic.ng',
         name: 'AutoRepublic',
         description:
           'Buy and sell vehicles in Nigeria with AutoRepublic.',
         publisher: {
-          '@id': 'https://autorepublic.ng/#organization',
+          '@id': 'https://www.autorepublic.ng/#organization',
         },
       },
     ],
