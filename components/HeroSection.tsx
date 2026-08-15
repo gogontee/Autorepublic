@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 
@@ -14,7 +14,7 @@ const slides = [
     cta: 'Find Hot Deals',
     route: '/vehicles',
     image: '/hero1.jpg', // Local image from public folder
-    gradient: 'from-blue-700/80 to-purple-700/80',
+    gradient: 'from-red-600/70 to-sky-500/70', // Changed to reddish and sky blue
     isLocal: true,
   },
   {
@@ -136,7 +136,7 @@ export default function HeroSection() {
           <div className={`absolute inset-0 bg-gradient-to-r ${slides[currentSlide].gradient}`} />
 
           {/* Dark Overlay for readability */}
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-black/30" />
 
           {/* Content - Positioned above all overlays */}
           <div className="relative z-10 h-full flex items-center">
@@ -185,21 +185,21 @@ export default function HeroSection() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation Arrows - Desktop only */}
-      <div className="hidden sm:flex absolute inset-0 items-center justify-between px-2 sm:px-4 pointer-events-none z-20">
+      {/* Navigation Arrows - Smaller and more subtle */}
+      <div className="hidden sm:flex absolute inset-0 items-center justify-between px-2 sm:px-3 pointer-events-none z-20">
         <button
           onClick={prevSlide}
-          className="pointer-events-auto p-2 sm:p-3 bg-black/50 backdrop-blur-sm hover:bg-black/70 rounded-full text-white transition-all hover:scale-110 border border-white/10"
+          className="pointer-events-auto p-1.5 bg-black/40 backdrop-blur-sm hover:bg-black/60 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 border border-white/5"
           aria-label="Previous slide"
         >
-          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+          <ChevronLeft className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={nextSlide}
-          className="pointer-events-auto p-2 sm:p-3 bg-black/50 backdrop-blur-sm hover:bg-black/70 rounded-full text-white transition-all hover:scale-110 border border-white/10"
+          className="pointer-events-auto p-1.5 bg-black/40 backdrop-blur-sm hover:bg-black/60 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 border border-white/5"
           aria-label="Next slide"
         >
-          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
@@ -216,25 +216,6 @@ export default function HeroSection() {
           />
         ))}
       </div>
-
-      {/* Auto-Play Toggle - Desktop */}
-      <button
-        onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-        className="absolute bottom-3 sm:bottom-4 right-3 sm:right-4 hidden sm:flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-black/50 backdrop-blur-sm hover:bg-black/70 rounded-full text-xs text-white/70 transition-all border border-white/10 z-20"
-        aria-label={isAutoPlaying ? 'Pause slideshow' : 'Play slideshow'}
-      >
-        {isAutoPlaying ? (
-          <>
-            <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-            <span className="hidden sm:inline">Pause</span>
-          </>
-        ) : (
-          <>
-            <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-            <span className="hidden sm:inline">Play</span>
-          </>
-        )}
-      </button>
 
       {/* Mobile-specific aspect ratio override */}
       <style jsx>{`

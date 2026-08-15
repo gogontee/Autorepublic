@@ -116,12 +116,15 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
           const Icon = tab.icon
           
           return (
-            <div
+            <motion.div
               key={tab.id}
-              className="relative flex flex-col"
+              className="relative flex flex-col cursor-pointer"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleTabClick(tab)}
             >
-              <motion.button
-                onClick={() => handleTabClick(tab)}
+              {/* Main button area - top part */}
+              <div
                 className={`
                   relative flex flex-col items-center justify-center gap-1 p-2.5 rounded-t-xl
                   border-2 border-b-0 transition-all duration-300 w-full
@@ -132,8 +135,6 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
                       : 'border-white/30 bg-white/5 hover:border-white/60 hover:bg-white/10'
                   }
                 `}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
               >
                 {/* Breathing animation for Main Market */}
                 {isMainMarket && (
@@ -158,9 +159,9 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
                   }`}
                 />
                 
-                {/* Label */}
+                {/* Label - increased text size */}
                 <span 
-                  className={`text-[10px] font-medium transition-colors duration-300 text-center leading-tight ${
+                  className={`text-xs sm:text-sm font-medium transition-colors duration-300 text-center leading-tight ${
                     isMainMarket || isActive ? 'text-white' : 'text-white/60'
                   }`}
                 >
@@ -205,9 +206,9 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
                     <div className="absolute inset-0 bg-white/5 rounded-t-xl" />
                   </motion.div>
                 )}
-              </motion.button>
+              </div>
 
-              {/* Description - Always visible below the button */}
+              {/* Description - Always visible below the button - now clickable */}
               <div 
                 className={`
                   px-2.5 py-2 rounded-b-xl border-2 border-t-0 transition-all duration-300
@@ -215,18 +216,20 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
                     ? 'border-red-500 bg-red-500/5' 
                     : isActive 
                       ? 'border-red-500 bg-red-500/5' 
-                      : 'border-white/30 bg-white/5'
+                      : 'border-white/30 bg-white/5 hover:bg-white/10'
                   }
                 `}
               >
-                <p className="text-[8px] text-white/40 text-center leading-tight">
+                {/* Description text - slightly larger */}
+                <p className="text-[9px] sm:text-[10px] text-white/40 text-center leading-tight">
                   {tab.description}
                 </p>
-                <p className="text-[7px] text-red-400/60 text-center mt-0.5 font-medium">
+                {/* Action text - slightly larger */}
+                <p className="text-[8px] sm:text-[9px] text-red-400/60 text-center mt-0.5 font-medium">
                   {tab.action}
                 </p>
               </div>
-            </div>
+            </motion.div>
           )
         })}
       </div>
