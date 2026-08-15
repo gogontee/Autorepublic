@@ -121,7 +121,7 @@ export default function HomePage() {
 
       {/* App Tabs - Navigation for vehicle categories */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <AppTabs variant="default" className="mb-4" />
+        <AppTabs className="mb-4" />
       </div>
     </LayoutWrapper>
   )
