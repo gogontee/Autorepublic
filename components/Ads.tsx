@@ -73,7 +73,6 @@ export default function Ads({
 
   // Track ad view (only once per session per ad)
   const trackAdView = useCallback(async (adId: number) => {
-    // Skip if already tracked this session
     if (trackedViewsRef.current.has(adId)) {
       console.log(`👁️ View already tracked for ad ${adId} in this session`)
       return
@@ -110,11 +109,7 @@ export default function Ads({
         console.error('Error updating view count:', updateError)
       } else {
         console.log('✅ View count updated successfully:', newCount)
-        
-        // Mark as tracked for this session
         trackedViewsRef.current.add(adId)
-        
-        // Update local state
         setAllAds(prevAds => 
           prevAds.map(ad => 
             ad.id === adId 
@@ -162,7 +157,6 @@ export default function Ads({
         console.error('Error updating click count:', updateError)
       } else {
         console.log('✅ Click count updated successfully:', newCount)
-        
         setAllAds(prevAds => 
           prevAds.map(ad => 
             ad.id === adId 
@@ -183,7 +177,6 @@ export default function Ads({
     if (displayOrder.length > 0 && !loading) {
       const currentAd = allAds[displayOrder[currentIndex]]
       if (currentAd) {
-        // Only track if not already tracked this session
         if (!trackedViewsRef.current.has(currentAd.id)) {
           trackAdView(currentAd.id)
         }
@@ -390,14 +383,94 @@ export default function Ads({
         <X className="w-3 h-3" />
       </button>
 
-      {/* Ad Content - Responsive aspect ratio */}
-      <div className="relative w-full">
-        {/* Desktop: 10/1.5, Mobile: 10/2 */}
-        <div className="hidden sm:block" style={{ aspectRatio: '10/1.5' }} />
-        <div className="sm:hidden" style={{ aspectRatio: '10/2' }} />
-        
-        {/* Content container that fills both aspect ratios */}
-        <div className="absolute inset-0">
+      {/* Desktop Layout - UNCHANGED */}
+      <div className="hidden sm:block relative w-full" style={{ aspectRatio: '10/1.5' }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentIndex}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ 
+              duration: 0.5, 
+              ease: "easeInOut",
+              opacity: { duration: 0.3 }
+            }}
+            className="absolute inset-0"
+          >
+            <div className="absolute inset-0">
+              {hasVideo && (
+                <video
+                  ref={videoRef}
+                  src={currentAd.video!}
+                  className="w-full h-full object-cover"
+                  muted={isMuted}
+                  playsInline
+                  autoPlay={!isPaused}
+                  onLoadedMetadata={handleVideoMetadata}
+                  onEnded={handleVideoEnded}
+                />
+              )}
+
+              {!hasVideo && hasImage && (
+                <img
+                  src={currentAd.image!}
+                  alt={currentAd.text || 'Advertisement'}
+                  className="w-full h-full object-cover"
+                />
+              )}
+
+              {!hasVideo && !hasImage && hasText && (
+                <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
+              )}
+
+              {hasText && (
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+              )}
+            </div>
+
+            {hasText && (
+              <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 z-10">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[10px] sm:text-xs md:text-sm font-medium text-white drop-shadow-lg line-clamp-2 flex-1 min-w-[60%]">
+                    {currentAd.text}
+                  </p>
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                    {hasLink && (
+                      <button
+                        onClick={handleCtaClick}
+                        className="px-2 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg text-[8px] sm:text-[10px] font-medium text-white transition-all hover:scale-[1.05] active:scale-[0.95] flex items-center gap-1"
+                      >
+                        <span>Learn More</span>
+                        <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      </button>
+                    )}
+                    <button
+                      onClick={handleRunAdClick}
+                      className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[7px] sm:text-[9px] font-medium text-white/60 hover:text-white transition-all flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      <span className="hidden xs:inline">Run this ad</span>
+                      <span className="xs:hidden">Run ad like this</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="absolute top-1 left-1.5 z-10">
+              <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-sm rounded-full text-[8px] text-white/40">
+                Sponsored
+              </span>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Mobile Layout - Text BELOW the ad, 10:2.5 aspect ratio */}
+      <div className="sm:hidden">
+        {/* Ad Media - Image or Video with 10:2.5 aspect ratio */}
+        <div className="relative w-full" style={{ aspectRatio: '10/2.5' }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
@@ -412,7 +485,6 @@ export default function Ads({
               className="absolute inset-0"
             >
               <div className="absolute inset-0">
-                {/* Video Ad - NOT clickable */}
                 {hasVideo && (
                   <video
                     ref={videoRef}
@@ -426,7 +498,6 @@ export default function Ads({
                   />
                 )}
 
-                {/* Image Ad - NOT clickable */}
                 {!hasVideo && hasImage && (
                   <img
                     src={currentAd.image!}
@@ -435,56 +506,46 @@ export default function Ads({
                   />
                 )}
 
-                {/* If only text, show a gradient background */}
                 {!hasVideo && !hasImage && hasText && (
                   <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
                 )}
 
-                {/* Gradient overlay for text readability */}
-                {hasText && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                )}
-              </div>
-
-              {/* Text/Caption with CTA buttons */}
-              {hasText && (
-                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 z-10">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] sm:text-xs md:text-sm font-medium text-white drop-shadow-lg line-clamp-2 flex-1 min-w-[60%]">
-                      {currentAd.text}
-                    </p>
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                      {hasLink && (
-                        <button
-                          onClick={handleCtaClick}
-                          className="px-2 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg text-[8px] sm:text-[10px] font-medium text-white transition-all hover:scale-[1.05] active:scale-[0.95] flex items-center gap-1"
-                        >
-                          <span>Learn More</span>
-                          <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                        </button>
-                      )}
-                      <button
-                        onClick={handleRunAdClick}
-                        className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[7px] sm:text-[9px] font-medium text-white/60 hover:text-white transition-all flex items-center gap-1 whitespace-nowrap"
-                      >
-                        <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                        <span className="hidden xs:inline">Run this ad</span>
-                        <span className="xs:hidden">Run ad like this</span>
-                      </button>
-                    </div>
-                  </div>
+                <div className="absolute top-1 left-1.5 z-10">
+                  <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-sm rounded-full text-[8px] text-white/40">
+                    Sponsored
+                  </span>
                 </div>
-              )}
-
-              {/* Sponsored Tag - Top Left */}
-              <div className="absolute top-1 left-1.5 z-10">
-                <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-sm rounded-full text-[8px] text-white/40">
-                  Sponsored
-                </span>
               </div>
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Text and Buttons - BELOW the ad, full width */}
+        {hasText && (
+          <div className="w-full px-3 py-3 bg-black/90 border-t border-white/5">
+            <p className="text-xs sm:text-sm font-medium text-white leading-relaxed w-full">
+              {currentAd.text}
+            </p>
+            <div className="flex items-center gap-2 mt-2 w-full">
+              {hasLink && (
+                <button
+                  onClick={handleCtaClick}
+                  className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 rounded-lg text-xs font-medium text-white transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-1"
+                >
+                  <span>Learn More</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              )}
+              <button
+                onClick={handleRunAdClick}
+                className="flex-1 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium text-white/60 hover:text-white transition-all flex items-center justify-center gap-1"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>Run this ad</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
