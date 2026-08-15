@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Heart, MapPin, Fuel, Gauge, Star, Tag, Crown, Sparkles, Flame, Loader2 } from 'lucide-react'
+import { MapPin, Fuel, Gauge, Star, Tag, Crown, Sparkles, Flame, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -29,6 +29,7 @@ interface CarCardProps {
     car_code?: string
     is_promoted?: boolean
     promotion_package?: string
+    rating?: number
   }
   index: number
 }
@@ -182,7 +183,7 @@ export default function CarCard({ car, index }: CarCardProps) {
   const currentImage = allImages[currentImageIndex] || allImages[0] || '/api/placeholder/400/300'
 
   // Get rating display values
-  const displayRating = ratingData?.average || 0
+  const displayRating = ratingData?.average || car.rating || 0
   const displayReviewCount = ratingData?.count || 0
   const hasRatings = displayReviewCount > 0 && displayRating > 0
 
@@ -241,7 +242,6 @@ export default function CarCard({ car, index }: CarCardProps) {
         <span className="text-white/90 text-[9px] sm:text-xs ml-0.5">
           {displayRating.toFixed(1)}
         </span>
-        {/* Review count removed - not showing on card */}
       </>
     )
   }
@@ -319,18 +319,6 @@ export default function CarCard({ car, index }: CarCardProps) {
               {promotionBadge.label}
             </motion.div>
           )}
-
-          {/* Like Button */}
-          <button 
-            className="absolute top-2 sm:top-3 right-2 sm:right-3 p-1.5 sm:p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors z-10"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              // Handle like functionality
-            }}
-          >
-            <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
-          </button>
           
           {/* Rating - ONLY show if there are ratings, without count */}
           {hasRatings && (

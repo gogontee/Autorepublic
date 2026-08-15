@@ -8,6 +8,16 @@ import { useRouter } from 'next/navigation'
 
 const slides = [
   {
+    id: 0, // New primary slide - this will be shown first
+    title: 'Discover | Buy | Sell',
+    subtitle: 'Your next car on AutoRepublic — Nigeria\'s trusted vehicle marketplace',
+    cta: 'Find Hot Deals',
+    route: '/vehicles',
+    image: '/hero1.jpg', // Local image from public folder
+    gradient: 'from-blue-700/80 to-purple-700/80',
+    isLocal: true,
+  },
+  {
     id: 1,
     title: 'Find Your Dream Car',
     subtitle: 'Premium selection of luxury and sports vehicles',
@@ -137,15 +147,29 @@ export default function HeroSection() {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="max-w-3xl"
               >
-                {/* Title */}
-                <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-2 sm:mb-3 leading-tight drop-shadow-lg">
-                  {slides[currentSlide].title}
-                </h1>
-
-                {/* Subtitle - Hidden on mobile */}
-                <p className="hidden sm:block text-base sm:text-lg md:text-xl text-white/90 mb-4 sm:mb-6 max-w-2xl drop-shadow-md">
-                  {slides[currentSlide].subtitle}
-                </p>
+                {/* Title - Special styling for the first slide */}
+                {currentSlide === 0 ? (
+                  <>
+                    <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-2 sm:mb-3 leading-tight drop-shadow-lg">
+                      Discover <span className="text-red-300">|</span> Buy <span className="text-red-300">|</span> Sell
+                    </h1>
+                    <p className="text-lg sm:text-xl md:text-2xl text-white/95 mb-4 sm:mb-6 drop-shadow-md font-medium">
+                      Your next car on <span className="text-blue-200 font-bold">AutoRepublic</span>
+                    </p>
+                    <p className="hidden sm:block text-base sm:text-lg md:text-xl text-white/80 mb-4 sm:mb-6 max-w-2xl drop-shadow-md">
+                      Nigeria's trusted vehicle marketplace for locally used, foreign-used, brand-new, electric, and luxury vehicles.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-2 sm:mb-3 leading-tight drop-shadow-lg">
+                      {slides[currentSlide].title}
+                    </h1>
+                    <p className="hidden sm:block text-base sm:text-lg md:text-xl text-white/90 mb-4 sm:mb-6 max-w-2xl drop-shadow-md">
+                      {slides[currentSlide].subtitle}
+                    </p>
+                  </>
+                )}
 
                 {/* CTA Button - Smaller on mobile */}
                 <button 

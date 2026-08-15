@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Car, 
@@ -14,8 +14,10 @@ import {
   Sparkles,
   Sun,
   Grid3X3,
-  Bus
+  Bus,
+  ChevronDown
 } from 'lucide-react'
+import LocationFilter from './LocationFilter'
 
 const categories = [
   { id: 'all', name: 'All', icon: Grid3X3 },
@@ -36,17 +38,29 @@ const categories = [
 interface VehicleCategoryProps {
   onSelectCategory?: (categoryId: string | null) => void
   onSelectCondition?: (condition: string | null) => void
+  onSelectState?: (state: string | null) => void
+  onSelectCity?: (city: string | null) => void
   selectedCategory?: string | null
   selectedCondition?: string | null
+  selectedState?: string | null
+  selectedCity?: string | null
 }
 
 export default function VehicleCategory({ 
   onSelectCategory, 
   onSelectCondition,
+  onSelectState,
+  onSelectCity,
   selectedCategory,
-  selectedCondition
+  selectedCondition,
+  selectedState,
+  selectedCity
 }: VehicleCategoryProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [isConditionDropdownOpen, setIsConditionDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
 
   const filters = [
     { id: 'all', label: 'All', value: null },
@@ -55,40 +69,165 @@ export default function VehicleCategory({
     { id: 'local-used', label: 'Local Used', value: 'local used' },
   ]
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsConditionDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Update dropdown position when opened
+  useEffect(() => {
+    if (isConditionDropdownOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 2,
+        left: rect.left + window.scrollX,
+      })
+    }
+  }, [isConditionDropdownOpen])
+
+  // Get the current condition label
+  const getCurrentConditionLabel = () => {
+    if (!selectedCondition) return 'All'
+    const filter = filters.find(f => f.value === selectedCondition)
+    return filter ? filter.label : 'All'
+  }
+
   return (
     <div className="py-1 sm:py-2 border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header - Single line with filters */}
         <div className="flex items-center justify-between mb-2 sm:mb-3">
-          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide">
-            <h2 className="text-[10px] sm:text-xs font-medium text-white/60 whitespace-nowrap">
-              Browse by Category
-            </h2>
-            
-            {/* Filter Labels - Condition filters with "All" */}
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              {filters.map((filter) => (
+          {/* Left side - filters */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {/* Mobile View - Hidden on desktop */}
+            <div className="flex items-center gap-1.5 sm:hidden flex-shrink-0">
+              {/* Condition Dropdown on Mobile */}
+              <div ref={dropdownRef} className="relative inline-block">
                 <button
-                  key={filter.id}
-                  onClick={() => onSelectCondition?.(selectedCondition === filter.value ? null : filter.value)}
-                  className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-medium transition-all whitespace-nowrap ${
-                    (selectedCondition === filter.value) || (filter.id === 'all' && !selectedCondition)
-                      ? 'bg-red-500 text-white'
-                      : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
-                  }`}
+                  ref={buttonRef}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setIsConditionDropdownOpen(!isConditionDropdownOpen)
+                  }}
+                  className={`
+                    flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-medium transition-all whitespace-nowrap
+                    ${selectedCondition
+                      ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20'
+                      : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white/80'
+                    }
+                  `}
                 >
-                  {filter.label}
+                  <span>{getCurrentConditionLabel()}</span>
+                  <ChevronDown className={`w-2.5 h-2.5 transition-transform ${isConditionDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-              ))}
+
+                {/* Condition Dropdown Menu - Fixed position directly below button */}
+                {isConditionDropdownOpen && (
+                  <div 
+                    className="fixed bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl shadow-black/50 overflow-hidden z-[99999]"
+                    style={{
+                      top: dropdownPosition.top,
+                      left: dropdownPosition.left,
+                      minWidth: '120px',
+                      maxWidth: '160px'
+                    }}
+                  >
+                    {filters.map((filter) => (
+                      <button
+                        key={filter.id}
+                        onClick={() => {
+                          onSelectCondition?.(filter.value)
+                          setIsConditionDropdownOpen(false)
+                        }}
+                        className={`
+                          w-full flex items-center justify-between px-3 py-2 text-[9px] transition-colors
+                          ${(selectedCondition === filter.value) || (filter.id === 'all' && !selectedCondition)
+                            ? 'bg-red-500/10 text-red-500'
+                            : 'text-white/60 hover:bg-white/5 hover:text-white'
+                          }
+                        `}
+                      >
+                        <span>{filter.label}</span>
+                        {(selectedCondition === filter.value) || (filter.id === 'all' && !selectedCondition) && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Location Filter on Mobile - Reduced font sizes */}
+              <div className="scale-90 origin-left flex-shrink-0">
+                <LocationFilter
+                  selectedState={selectedState ?? null}
+                  selectedCity={selectedCity ?? null}
+                  onStateChange={(state) => {
+                    console.log('📍 State changed in VehicleCategory:', state)
+                    onSelectState?.(state)
+                  }}
+                  onCityChange={(city) => {
+                    console.log('📍 City changed in VehicleCategory:', city)
+                    onSelectCity?.(city)
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Desktop View - Hidden on mobile */}
+            <div className="hidden sm:flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-x-auto scrollbar-hide">
+              <h2 className="text-[10px] sm:text-xs font-medium text-white/60 whitespace-nowrap flex-shrink-0">
+                Browse by Category
+              </h2>
+              
+              {/* Filter Labels - Condition filters with "All" */}
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+                {filters.map((filter) => (
+                  <button
+                    key={filter.id}
+                    onClick={() => onSelectCondition?.(selectedCondition === filter.value ? null : filter.value)}
+                    className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-medium transition-all whitespace-nowrap ${
+                      (selectedCondition === filter.value) || (filter.id === 'all' && !selectedCondition)
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Location Filter on Desktop */}
+              <div className="flex items-center gap-1 sm:gap-1.5 border-l border-white/10 pl-2 sm:pl-3 flex-shrink-0">
+                <LocationFilter
+                  selectedState={selectedState ?? null}
+                  selectedCity={selectedCity ?? null}
+                  onStateChange={(state) => {
+                    console.log('📍 State changed in VehicleCategory:', state)
+                    onSelectState?.(state)
+                  }}
+                  onCityChange={(city) => {
+                    console.log('📍 City changed in VehicleCategory:', city)
+                    onSelectCity?.(city)
+                  }}
+                />
+              </div>
             </div>
           </div>
           
-          <button className="text-[10px] sm:text-xs text-red-500 font-medium hover:text-red-400 transition-colors whitespace-nowrap flex-shrink-0">
+          <button className="text-[10px] sm:text-xs text-red-500 font-medium hover:text-red-400 transition-colors whitespace-nowrap flex-shrink-0 ml-2">
             View All
           </button>
         </div>
 
-        {/* Categories Scroll */}
+        {/* Categories Scroll - Unchanged, works on both mobile and desktop */}
         <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 sm:pb-2 scrollbar-hide">
           {categories.map((category) => {
             const Icon = category.icon
@@ -139,7 +278,7 @@ export default function VehicleCategory({
                   </span>
                 </div>
 
-                {/* Active/Hover indicator - only shows when selected or hovered */}
+                {/* Active/Hover indicator */}
                 {(isHovered || isSelected) && (
                   <motion.div
                     layoutId="category-indicator"

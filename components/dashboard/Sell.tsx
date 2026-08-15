@@ -19,7 +19,9 @@ import {
   Palette,
   Gauge,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Home,
+  Check
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import dynamic from 'next/dynamic'
@@ -46,6 +48,12 @@ interface SellProps {
     profile: any
     session: any
   }
+  savedFormData?: any
+  savedImages?: any[]
+  onFormDataChange?: (data: any) => void
+  onImagesChange?: (images: any[]) => void
+  onFormSubmit?: () => void
+  onSuccessAction?: () => void
 }
 
 interface ImageFile {
@@ -94,7 +102,7 @@ const engineTypes = ['V4', 'V6', 'V8', 'V10', 'V12', 'Inline-4', 'Inline-6', 'El
 
 const years = Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i)
 
-// Quill modules configuration - REMOVED link and image
+// Quill modules configuration
 const quillModules = {
   toolbar: [
     [{ header: [1, 2, 3, false] }],
@@ -106,7 +114,6 @@ const quillModules = {
   ],
 }
 
-// Removed 'link' and 'image' from formats
 const quillFormats = [
   'header',
   'bold', 'italic', 'underline', 'strike',
@@ -115,14 +122,21 @@ const quillFormats = [
   'color', 'background'
 ]
 
-export default function Sell({ userData }: SellProps) {
+export default function Sell({ 
+  userData, 
+  savedFormData, 
+  savedImages,
+  onFormDataChange, 
+  onImagesChange,
+  onFormSubmit,
+  onSuccessAction 
+}: SellProps) {
   const { user, profile } = userData || {}
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [showSuccessModal, setShowSuccessModal] = useState(false)
-  const [images, setImages] = useState<ImageFile[]>([])
   const [searching, setSearching] = useState(false)
   const [allBrands, setAllBrands] = useState<string[]>([])
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([])
@@ -135,6 +149,17 @@ export default function Sell({ userData }: SellProps) {
   const [showTrimSuggestions, setShowTrimSuggestions] = useState(false)
   const [engineSuggestions, setEngineSuggestions] = useState<string[]>([])
   const [showEngineSuggestions, setShowEngineSuggestions] = useState(false)
+  
+  // Location state
+  const [allStates, setAllStates] = useState<string[]>([])
+  const [allCities, setAllCities] = useState<string[]>([])
+  const [isStateDropdownOpen, setIsStateDropdownOpen] = useState(false)
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false)
+  const [isLoadingStates, setIsLoadingStates] = useState(false)
+  const [isLoadingCities, setIsLoadingCities] = useState(false)
+  const [stateSearch, setStateSearch] = useState('')
+  const [citySearch, setCitySearch] = useState('')
+  
   const brandInputRef = useRef<HTMLInputElement>(null)
   const modelInputRef = useRef<HTMLInputElement>(null)
   const trimInputRef = useRef<HTMLInputElement>(null)
@@ -142,8 +167,13 @@ export default function Sell({ userData }: SellProps) {
   const engineInputRef = useRef<HTMLInputElement>(null)
   const colorScrollRef = useRef<HTMLDivElement>(null)
   const interiorColorScrollRef = useRef<HTMLDivElement>(null)
+  const stateButtonRef = useRef<HTMLButtonElement>(null)
+  const cityButtonRef = useRef<HTMLButtonElement>(null)
+  const stateDropdownRef = useRef<HTMLDivElement>(null)
+  const cityDropdownRef = useRef<HTMLDivElement>(null)
 
-  const [formData, setFormData] = useState({
+  // Initialize formData with saved data if available
+  const defaultFormData = {
     title: '',
     brand: '',
     model: '',
@@ -160,11 +190,50 @@ export default function Sell({ userData }: SellProps) {
     description: '',
     condition: '',
     category: '',
-    city: profile?.city || '',
-    state: profile?.state || '',
-    country: profile?.country || '',
+    city: '',
+    state: '',
+    country: '',
+    fullAddress: '',
     phone: profile?.phone || '',
+  }
+
+  const [formData, setFormData] = useState(() => {
+    if (savedFormData) {
+      return {
+        ...defaultFormData,
+        ...savedFormData,
+        phone: savedFormData.phone || profile?.phone || '',
+      }
+    }
+    return defaultFormData
   })
+
+  // Initialize images from saved data
+  const [images, setImages] = useState<ImageFile[]>(() => {
+    if (savedImages && savedImages.length > 0) {
+      return savedImages.map((img: any) => ({
+        id: img.id,
+        preview: img.preview,
+        isCover: img.isCover,
+        file: new File([], img.fileName || 'image.jpg', { type: img.fileType || 'image/jpeg' })
+      }))
+    }
+    return []
+  })
+
+  // Save form data whenever it changes
+  useEffect(() => {
+    if (onFormDataChange) {
+      onFormDataChange(formData)
+    }
+  }, [formData, onFormDataChange])
+
+  // Save images whenever they change
+  useEffect(() => {
+    if (onImagesChange) {
+      onImagesChange(images)
+    }
+  }, [images, onImagesChange])
 
   // Fetch all brands on component mount
   useEffect(() => {
@@ -177,7 +246,7 @@ export default function Sell({ userData }: SellProps) {
 
         if (error) throw error
 
-        const uniqueBrands = [...new Set(data.map(item => item.brand))]
+        const uniqueBrands = [...new Set(data.map((item: any) => item.brand))]
         setAllBrands(uniqueBrands)
       } catch (err) {
         console.error('Error fetching brands:', err)
@@ -185,7 +254,53 @@ export default function Sell({ userData }: SellProps) {
     }
 
     fetchAllBrands()
+    fetchAllStates()
   }, [])
+
+  // Fetch all states
+  const fetchAllStates = async () => {
+    setIsLoadingStates(true)
+    try {
+      const response = await fetch('/api/locations/states')
+      if (!response.ok) throw new Error('Failed to fetch states')
+      const data = await response.json()
+      setAllStates(data.states || [])
+    } catch (error) {
+      console.error('Error fetching states:', error)
+    } finally {
+      setIsLoadingStates(false)
+    }
+  }
+
+  // Fetch cities for a state
+  const fetchCitiesForState = async (state: string) => {
+    if (!state) {
+      setAllCities([])
+      return
+    }
+
+    setIsLoadingCities(true)
+    try {
+      const response = await fetch(`/api/locations/cities?state=${encodeURIComponent(state)}`)
+      if (!response.ok) throw new Error('Failed to fetch cities')
+      const data = await response.json()
+      setAllCities(data.cities || [])
+    } catch (error) {
+      console.error('Error fetching cities:', error)
+      setAllCities([])
+    } finally {
+      setIsLoadingCities(false)
+    }
+  }
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (formData.state) {
+      fetchCitiesForState(formData.state)
+    } else {
+      setAllCities([])
+    }
+  }, [formData.state])
 
   // Fetch all models for a brand when brand is selected
   useEffect(() => {
@@ -205,7 +320,7 @@ export default function Sell({ userData }: SellProps) {
 
         if (error) throw error
 
-        const uniqueModels = [...new Set(data.map(item => item.model))]
+        const uniqueModels = [...new Set(data.map((item: any) => item.model))]
         setAllModels(uniqueModels)
         if (uniqueModels.length > 0) {
           setModelSuggestions(uniqueModels)
@@ -259,9 +374,9 @@ export default function Sell({ userData }: SellProps) {
   }
 
   const handleEngineChange = (value: string) => {
-    setFormData(prev => ({ ...prev, engineType: value }))
+    setFormData((prev: typeof formData) => ({ ...prev, engineType: value }))
     if (value.length > 0) {
-      const filtered = engineTypes.filter(type => 
+      const filtered = engineTypes.filter((type: string) => 
         type.toLowerCase().includes(value.toLowerCase())
       )
       setEngineSuggestions(filtered)
@@ -273,11 +388,11 @@ export default function Sell({ userData }: SellProps) {
   }
 
   const selectEngine = (engine: string) => {
-    setFormData(prev => ({ ...prev, engineType: engine }))
+    setFormData((prev: typeof formData) => ({ ...prev, engineType: engine }))
     setShowEngineSuggestions(false)
   }
 
-  // Handle brand input focus - show all brands
+  // Handle brand input
   const handleBrandFocus = () => {
     if (allBrands.length > 0) {
       setBrandSuggestions(allBrands)
@@ -285,13 +400,12 @@ export default function Sell({ userData }: SellProps) {
     }
   }
 
-  // Handle brand input change - filter brands
   const handleBrandChange = (value: string) => {
-    setFormData(prev => ({ ...prev, brand: value }))
+    setFormData((prev: typeof formData) => ({ ...prev, brand: value }))
     if (error) setError('')
     
     if (value.length > 0) {
-      const filtered = allBrands.filter(brand => 
+      const filtered = allBrands.filter((brand: string) => 
         brand.toLowerCase().includes(value.toLowerCase())
       )
       setBrandSuggestions(filtered)
@@ -302,7 +416,7 @@ export default function Sell({ userData }: SellProps) {
     }
   }
 
-  // Handle model input focus - show all models for the brand
+  // Handle model input
   const handleModelFocus = () => {
     if (formData.brand) {
       if (allModels.length > 0) {
@@ -315,13 +429,12 @@ export default function Sell({ userData }: SellProps) {
     }
   }
 
-  // Handle model input change - filter models
   const handleModelChange = (value: string) => {
-    setFormData(prev => ({ ...prev, model: value }))
+    setFormData((prev: typeof formData) => ({ ...prev, model: value }))
     if (error) setError('')
     
     if (value.length > 0) {
-      const filtered = allModels.filter(model => 
+      const filtered = allModels.filter((model: string) => 
         model.toLowerCase().includes(value.toLowerCase())
       )
       setModelSuggestions(filtered)
@@ -332,7 +445,7 @@ export default function Sell({ userData }: SellProps) {
     }
   }
 
-  // Handle trim input focus - show all trims for the model
+  // Handle trim input
   const handleTrimFocus = () => {
     if (formData.model && allTrims.length > 0) {
       setTrimSuggestions(allTrims)
@@ -340,13 +453,12 @@ export default function Sell({ userData }: SellProps) {
     }
   }
 
-  // Handle trim input change - filter trims
   const handleTrimChange = (value: string) => {
-    setFormData(prev => ({ ...prev, trim: value }))
+    setFormData((prev: typeof formData) => ({ ...prev, trim: value }))
     if (error) setError('')
     
     if (value.length > 0) {
-      const filtered = allTrims.filter(trim => 
+      const filtered = allTrims.filter((trim: string) => 
         trim.toLowerCase().includes(value.toLowerCase())
       )
       setTrimSuggestions(filtered)
@@ -372,7 +484,7 @@ export default function Sell({ userData }: SellProps) {
           if (error) throw error
 
           if (data?.brand) {
-            setFormData(prev => ({ ...prev, brand: data.brand }))
+            setFormData((prev: typeof formData) => ({ ...prev, brand: data.brand }))
             setShowModelSuggestions(false)
           }
         } catch (err) {
@@ -384,26 +496,110 @@ export default function Sell({ userData }: SellProps) {
     fetchBrandFromModel()
   }, [formData.model])
 
+  // Location dropdown handlers
+  const toggleStateDropdown = () => {
+    setIsStateDropdownOpen(!isStateDropdownOpen)
+    setIsCityDropdownOpen(false)
+  }
+
+  const toggleCityDropdown = () => {
+    if (formData.state) {
+      setIsCityDropdownOpen(!isCityDropdownOpen)
+      setIsStateDropdownOpen(false)
+    }
+  }
+
+  const selectState = (state: string) => {
+    setFormData((prev: typeof formData) => ({ ...prev, state, city: '' }))
+    setIsStateDropdownOpen(false)
+    setStateSearch('')
+  }
+
+  const selectCity = (city: string) => {
+    setFormData((prev: typeof formData) => ({ ...prev, city }))
+    setIsCityDropdownOpen(false)
+    setCitySearch('')
+  }
+
+  // Filter states and cities
+  const filteredStates = allStates.filter((state: string) =>
+    state.toLowerCase().includes(stateSearch.toLowerCase())
+  )
+
+  const filteredCities = allCities.filter((city: string) =>
+    city.toLowerCase().includes(citySearch.toLowerCase())
+  )
+
+  const selectBrand = (brand: string) => {
+    setFormData((prev: typeof formData) => ({ ...prev, brand }))
+    setShowBrandSuggestions(false)
+    setBrandSuggestions([])
+    setFormData((prev: typeof formData) => ({ ...prev, model: '', trim: '' }))
+    if (modelInputRef.current) {
+      modelInputRef.current.focus()
+    }
+  }
+
+  const selectModel = (model: string) => {
+    setFormData((prev: typeof formData) => ({ ...prev, model }))
+    setShowModelSuggestions(false)
+    setModelSuggestions([])
+    setFormData((prev: typeof formData) => ({ ...prev, trim: '' }))
+    if (trimInputRef.current) {
+      trimInputRef.current.focus()
+    }
+  }
+
+  const selectTrim = (trim: string) => {
+    setFormData((prev: typeof formData) => ({ ...prev, trim }))
+    setShowTrimSuggestions(false)
+    setTrimSuggestions([])
+  }
+
+  // Find LGA from city name
+  const findLGAForCity = async (city: string, state: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('cities')
+        .eq('state', state)
+        .single()
+
+      if (error) throw error
+
+      if (data?.cities) {
+        const cityObj = data.cities.find((c: any) => 
+          c.name && c.name.toLowerCase() === city.toLowerCase()
+        )
+        return cityObj?.lga || null
+      }
+      return null
+    } catch (error) {
+      console.error('Error finding LGA for city:', error)
+      return null
+    }
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData((prev: typeof formData) => ({ ...prev, [name]: value }))
     if (error) setError('')
   }
 
   // Handle description change for rich text
   const handleDescriptionChange = (value: string) => {
-    setFormData(prev => ({ ...prev, description: value }))
+    setFormData((prev: typeof formData) => ({ ...prev, description: value }))
     if (error) setError('')
   }
 
   // Handle color selection - Exterior
   const selectExteriorColor = (colorName: string) => {
-    setFormData(prev => ({ ...prev, color: colorName }))
+    setFormData((prev: typeof formData) => ({ ...prev, color: colorName }))
   }
 
   // Handle color selection - Interior
   const selectInteriorColor = (colorName: string) => {
-    setFormData(prev => ({ ...prev, interiorColor: colorName }))
+    setFormData((prev: typeof formData) => ({ ...prev, interiorColor: colorName }))
   }
 
   // Scroll color picker
@@ -435,13 +631,13 @@ export default function Sell({ userData }: SellProps) {
         isCover: images.length === 0 && i === 0
       })
     }
-    setImages(prev => [...prev, ...newImages])
+    setImages((prev: ImageFile[]) => [...prev, ...newImages])
   }
 
   const removeImage = (id: string) => {
-    setImages(prev => {
-      const filtered = prev.filter(img => img.id !== id)
-      const removed = prev.find(img => img.id === id)
+    setImages((prev: ImageFile[]) => {
+      const filtered = prev.filter((img: ImageFile) => img.id !== id)
+      const removed = prev.find((img: ImageFile) => img.id === id)
       if (removed) URL.revokeObjectURL(removed.preview)
       
       if (removed?.isCover && filtered.length > 0) {
@@ -453,36 +649,10 @@ export default function Sell({ userData }: SellProps) {
   }
 
   const setCoverImage = (id: string) => {
-    setImages(prev => prev.map(img => ({
+    setImages((prev: ImageFile[]) => prev.map((img: ImageFile) => ({
       ...img,
       isCover: img.id === id
     })))
-  }
-
-  const selectBrand = (brand: string) => {
-    setFormData(prev => ({ ...prev, brand }))
-    setShowBrandSuggestions(false)
-    setBrandSuggestions([])
-    setFormData(prev => ({ ...prev, model: '', trim: '' }))
-    if (modelInputRef.current) {
-      modelInputRef.current.focus()
-    }
-  }
-
-  const selectModel = (model: string) => {
-    setFormData(prev => ({ ...prev, model }))
-    setShowModelSuggestions(false)
-    setModelSuggestions([])
-    setFormData(prev => ({ ...prev, trim: '' }))
-    if (trimInputRef.current) {
-      trimInputRef.current.focus()
-    }
-  }
-
-  const selectTrim = (trim: string) => {
-    setFormData(prev => ({ ...prev, trim }))
-    setShowTrimSuggestions(false)
-    setTrimSuggestions([])
   }
 
   const resetForm = () => {
@@ -503,9 +673,10 @@ export default function Sell({ userData }: SellProps) {
       description: '',
       condition: '',
       category: '',
-      city: profile?.city || '',
-      state: profile?.state || '',
-      country: profile?.country || '',
+      city: '',
+      state: '',
+      country: '',
+      fullAddress: '',
       phone: profile?.phone || '',
     })
     setImages([])
@@ -524,11 +695,22 @@ export default function Sell({ userData }: SellProps) {
       return
     }
 
+    if (!formData.city || !formData.state) {
+      setError('Please select a city and state')
+      return
+    }
+
     setLoading(true)
     setError('')
     setSuccess(false)
 
     try {
+      // Find LGA for the selected city
+      let lga = null
+      if (formData.city && formData.state) {
+        lga = await findLGAForCity(formData.city, formData.state)
+      }
+
       const imageUrls: string[] = []
       let coverImageUrl = ''
       
@@ -583,6 +765,8 @@ export default function Sell({ userData }: SellProps) {
           city: formData.city || null,
           state: formData.state || null,
           country: formData.country || null,
+          lga: lga || null,
+          full_address: formData.fullAddress || null,
           phone: formData.phone || null,
           status: 'pending',
         })
@@ -595,6 +779,12 @@ export default function Sell({ userData }: SellProps) {
 
       setSuccess(true)
       setShowSuccessModal(true)
+      
+      // Clear saved form data after successful submission
+      if (onFormSubmit) {
+        onFormSubmit()
+      }
+      
       resetForm()
       
       setTimeout(() => {
@@ -651,12 +841,23 @@ export default function Sell({ userData }: SellProps) {
                   <span>•</span>
                   <span className="capitalize">{formData.condition}</span>
                 </div>
+                {formData.city && (
+                  <p className="text-xs text-white/40 mt-1">
+                    📍 {formData.city}, {formData.state}
+                  </p>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => {
                     setShowSuccessModal(false)
                     setSuccess(false)
+                    // Call onSuccessAction if provided
+                    if (onSuccessAction) {
+                      onSuccessAction()
+                    }
+                    // Navigate to dashboard my-listings page
+                    router.push('/dashboard/my-listing')
                   }}
                   className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-medium text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
@@ -806,7 +1007,7 @@ export default function Sell({ userData }: SellProps) {
               
               {showBrandSuggestions && brandSuggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-black/95 border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                  {brandSuggestions.map((brand) => (
+                  {brandSuggestions.map((brand: string) => (
                     <button
                       key={brand}
                       type="button"
@@ -842,7 +1043,7 @@ export default function Sell({ userData }: SellProps) {
               
               {showModelSuggestions && modelSuggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-black/95 border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                  {modelSuggestions.map((model) => (
+                  {modelSuggestions.map((model: string) => (
                     <button
                       key={model}
                       type="button"
@@ -877,7 +1078,7 @@ export default function Sell({ userData }: SellProps) {
               
               {showTrimSuggestions && trimSuggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-black/95 border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                  {trimSuggestions.map((trim) => (
+                  {trimSuggestions.map((trim: string) => (
                     <button
                       key={trim}
                       type="button"
@@ -903,7 +1104,7 @@ export default function Sell({ userData }: SellProps) {
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors appearance-none"
               >
                 <option value="" className="bg-black">Select year</option>
-                {years.map((year) => (
+                {years.map((year: number) => (
                   <option key={year} value={year} className="bg-black">{year}</option>
                 ))}
               </select>
@@ -947,7 +1148,7 @@ export default function Sell({ userData }: SellProps) {
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors appearance-none"
               >
                 <option value="" className="bg-black">Select fuel type</option>
-                {fuelTypes.map((type) => (
+                {fuelTypes.map((type: string) => (
                   <option key={type} value={type.toLowerCase()} className="bg-black">{type}</option>
                 ))}
               </select>
@@ -963,7 +1164,7 @@ export default function Sell({ userData }: SellProps) {
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors appearance-none"
               >
                 <option value="" className="bg-black">Select transmission</option>
-                {transmissions.map((trans) => (
+                {transmissions.map((trans: string) => (
                   <option key={trans} value={trans.toLowerCase()} className="bg-black">{trans}</option>
                 ))}
               </select>
@@ -985,7 +1186,7 @@ export default function Sell({ userData }: SellProps) {
                   className="flex gap-2 overflow-x-auto scrollbar-hide px-6 py-1"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
-                  {colorPalette.map((color) => (
+                  {colorPalette.map((color: { name: string, hex: string }) => (
                     <button
                       key={`ext-${color.name}`}
                       type="button"
@@ -1040,7 +1241,7 @@ export default function Sell({ userData }: SellProps) {
                   className="flex gap-2 overflow-x-auto scrollbar-hide px-6 py-1"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
-                  {colorPalette.map((color) => (
+                  {colorPalette.map((color: { name: string, hex: string }) => (
                     <button
                       key={`int-${color.name}`}
                       type="button"
@@ -1100,7 +1301,7 @@ export default function Sell({ userData }: SellProps) {
               
               {showEngineSuggestions && engineSuggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-black/95 border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                  {engineSuggestions.map((engine) => (
+                  {engineSuggestions.map((engine: string) => (
                     <button
                       key={engine}
                       type="button"
@@ -1142,7 +1343,7 @@ export default function Sell({ userData }: SellProps) {
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors appearance-none"
               >
                 <option value="" className="bg-black">Select condition</option>
-                {conditions.map((condition) => (
+                {conditions.map((condition: string) => (
                   <option key={condition} value={condition.toLowerCase()} className="bg-black">{condition}</option>
                 ))}
               </select>
@@ -1158,7 +1359,7 @@ export default function Sell({ userData }: SellProps) {
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors appearance-none"
               >
                 <option value="" className="bg-black">Select category</option>
-                {categories.map((category) => (
+                {categories.map((category: string) => (
                   <option key={category} value={category.toLowerCase()} className="bg-black">{category}</option>
                 ))}
               </select>
@@ -1181,41 +1382,177 @@ export default function Sell({ userData }: SellProps) {
               <p className="text-[10px] text-white/30 mt-1">This will be displayed for buyers to contact you</p>
             </div>
 
-            {/* Location */}
+            {/* Location - Custom Location Selector */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-white/60 mb-1">Location</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className="block text-xs font-medium text-white/60 mb-2">Location *</label>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                {/* State Dropdown */}
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-red-500/50 transition-colors"
-                    placeholder="City"
-                  />
+                  <label className="block text-[10px] text-white/40 mb-1">State</label>
+                  <button
+                    ref={stateButtonRef}
+                    type="button"
+                    onClick={toggleStateDropdown}
+                    className={`w-full flex items-center justify-between px-3 py-2 bg-white/5 border rounded-xl text-sm transition-all ${
+                      formData.state 
+                        ? 'border-red-500/50 text-white bg-red-500/5' 
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-white/40" />
+                      {formData.state || 'Select State'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${isStateDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isStateDropdownOpen && (
+                    <div 
+                      ref={stateDropdownRef}
+                      className="absolute z-20 w-full mt-1 bg-black/95 border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+                    >
+                      <div className="p-2 border-b border-white/5">
+                        <input
+                          type="text"
+                          placeholder="Search states..."
+                          value={stateSearch}
+                          onChange={(e) => setStateSearch(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-white/5 text-white text-xs rounded-lg border border-white/10 focus:border-red-500/50 focus:outline-none placeholder:text-white/30"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {isLoadingStates ? (
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="w-4 h-4 text-white/40 animate-spin" />
+                          </div>
+                        ) : filteredStates.length === 0 ? (
+                          <div className="text-center py-6 text-white/40 text-xs">
+                            No states found
+                          </div>
+                        ) : (
+                          filteredStates.map((state: string) => (
+                            <button
+                              key={state}
+                              type="button"
+                              onClick={() => selectState(state)}
+                              className={`w-full px-4 py-2 text-sm text-left transition-colors flex items-center gap-2 ${
+                                formData.state === state
+                                  ? 'bg-red-500/10 text-red-500'
+                                  : 'text-white/80 hover:bg-white/5'
+                              }`}
+                            >
+                              {formData.state === state && <Check className="w-3.5 h-3.5" />}
+                              {state}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  name="state"
-                  value={formData.state}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-red-500/50 transition-colors"
-                  placeholder="State"
-                />
-                <input
-                  type="text"
-                  name="country"
-                  value={formData.country}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-red-500/50 transition-colors"
-                  placeholder="Country"
-                />
+
+                {/* City Dropdown */}
+                <div className="relative">
+                  <label className="block text-[10px] text-white/40 mb-1">City</label>
+                  <button
+                    ref={cityButtonRef}
+                    type="button"
+                    onClick={toggleCityDropdown}
+                    disabled={!formData.state}
+                    className={`w-full flex items-center justify-between px-3 py-2 bg-white/5 border rounded-xl text-sm transition-all ${
+                      !formData.state
+                        ? 'border-white/5 text-white/30 cursor-not-allowed'
+                        : formData.city 
+                          ? 'border-red-500/50 text-white bg-red-500/5' 
+                          : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-white/40" />
+                      {formData.city || (formData.state ? 'Select City' : 'Select State First')}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isCityDropdownOpen && formData.state && (
+                    <div 
+                      ref={cityDropdownRef}
+                      className="absolute z-20 w-full mt-1 bg-black/95 border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+                    >
+                      <div className="p-2 border-b border-white/5">
+                        <input
+                          type="text"
+                          placeholder="Search cities..."
+                          value={citySearch}
+                          onChange={(e) => setCitySearch(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-white/5 text-white text-xs rounded-lg border border-white/10 focus:border-red-500/50 focus:outline-none placeholder:text-white/30"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {isLoadingCities ? (
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="w-4 h-4 text-white/40 animate-spin" />
+                          </div>
+                        ) : filteredCities.length === 0 ? (
+                          <div className="text-center py-6 text-white/40 text-xs">
+                            No cities found for this state
+                          </div>
+                        ) : (
+                          filteredCities.map((city: string) => (
+                            <button
+                              key={city}
+                              type="button"
+                              onClick={() => selectCity(city)}
+                              className={`w-full px-4 py-2 text-sm text-left transition-colors flex items-center gap-2 ${
+                                formData.city === city
+                                  ? 'bg-red-500/10 text-red-500'
+                                  : 'text-white/80 hover:bg-white/5'
+                              }`}
+                            >
+                              {formData.city === city && <Check className="w-3.5 h-3.5" />}
+                              {city}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected location display */}
+                {formData.state && formData.city && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <MapPin className="w-3.5 h-3.5 text-green-400" />
+                    <span className="text-xs text-green-400">
+                      Location selected: {formData.city}, {formData.state}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Description - Rich Text Editor (without link and image) */}
+            {/* Full Address */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-white/60 mb-1">Full Address (Optional)</label>
+              <div className="relative">
+                <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <input
+                  type="text"
+                  name="fullAddress"
+                  value={formData.fullAddress}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-red-500/50 transition-colors"
+                  placeholder="e.g. 24 Admiralty Way, Lekki, Lagos"
+                />
+              </div>
+              <p className="text-[10px] text-white/30 mt-1">
+                Enter the full address where the vehicle is located
+              </p>
+            </div>
+
+            {/* Description - Rich Text Editor */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-white/60 mb-1.5">
                 Description *

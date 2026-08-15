@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import { Filter, Grid, List, ChevronDown, Loader2, AlertCircle, X, Sparkles, Crown, Star, Flame } from 'lucide-react'
+import { Filter, Grid, List, ChevronDown, Loader2, AlertCircle, X, Crown, Star, Flame, Info } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import BottomNav from '@/components/BottomNav'
@@ -36,6 +36,7 @@ interface Vehicle {
   city: string
   state: string
   country: string
+  lga: string
   trim: string
   luxury?: boolean
   rating?: number
@@ -51,6 +52,7 @@ interface Vehicle {
 interface FilterState {
   brand: string
   model: string
+  trim: string
   location: string
   color: string
   transmission: string
@@ -59,16 +61,22 @@ interface FilterState {
   year: string
 }
 
-// Keys for localStorage
+// Cache for location data
+let locationCache: { [state: string]: any[] } = {}
+
 const STORAGE_KEYS = {
-  SEARCH_HISTORY: 'vehicle_search_history',
   VIEW_MODE: 'vehicle_view_mode',
-  SORT_BY: 'vehicle_sort_by'
+  SORT_BY: 'vehicle_sort_by',
+  FILTERS: 'vehicle_filters',
+  SELECTED_STATE: 'vehicle_selected_state',
+  SELECTED_CITY: 'vehicle_selected_city',
+  SELECTED_CATEGORY: 'vehicle_selected_category',
+  SELECTED_CONDITION: 'vehicle_selected_condition',
+  SEARCH_QUERY: 'vehicle_search_query'
 }
 
 const PAGE_SIZE = 30
 
-// Promotion priority order
 const PROMOTION_PRIORITY = {
   premium: 3,
   medium: 2,
@@ -81,25 +89,28 @@ function VehiclesContent() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([])
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [initialLoadDone, setInitialLoadDone] = useState(false)
   const [error, setError] = useState('')
   const [debugInfo, setDebugInfo] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedCondition, setSelectedCondition] = useState<string | null>(null)
+  const [selectedState, setSelectedState] = useState<string | null>(null)
+  const [selectedCity, setSelectedCity] = useState<string | null>(null)
+  const [selectedLGA, setSelectedLGA] = useState<string | null>(null)
   const [userLocation, setUserLocation] = useState<{city: string, state: string, country: string} | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState('newest')
   const [showSortDropdown, setShowSortDropdown] = useState(false)
-  const [promotedVehicles, setPromotedVehicles] = useState<Vehicle[]>([])
   const [activeFilters, setActiveFilters] = useState<FilterState>({
     brand: '',
     model: '',
+    trim: '',
     location: '',
     color: '',
     transmission: '',
@@ -107,11 +118,15 @@ function VehiclesContent() {
     maxPrice: '',
     year: ''
   })
+  const [isFetching, setIsFetching] = useState(false)
+  const [locationMessage, setLocationMessage] = useState<string | null>(null)
+  const [locationInfo, setLocationInfo] = useState<{exactCity: boolean, lga: string | null, state: string | null} | null>(null)
+  const [isRestoringState, setIsRestoringState] = useState(true)
 
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  // Load saved preferences from localStorage
+  // Load saved preferences and filters on mount
   useEffect(() => {
     const savedViewMode = localStorage.getItem(STORAGE_KEYS.VIEW_MODE)
     if (savedViewMode === 'list' || savedViewMode === 'grid') {
@@ -122,116 +137,398 @@ function VehiclesContent() {
     if (savedSort) {
       setSortBy(savedSort)
     }
+
+    // Load saved filters
+    const savedFilters = localStorage.getItem(STORAGE_KEYS.FILTERS)
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters)
+        setActiveFilters(parsed)
+      } catch (e) {
+        console.error('Error loading saved filters:', e)
+      }
+    }
+
+    // Load saved location
+    const savedState = localStorage.getItem(STORAGE_KEYS.SELECTED_STATE)
+    if (savedState && savedState !== 'null') {
+      setSelectedState(savedState)
+    }
+
+    const savedCity = localStorage.getItem(STORAGE_KEYS.SELECTED_CITY)
+    if (savedCity && savedCity !== 'null') {
+      setSelectedCity(savedCity)
+    }
+
+    const savedCategory = localStorage.getItem(STORAGE_KEYS.SELECTED_CATEGORY)
+    if (savedCategory && savedCategory !== 'null') {
+      setSelectedCategory(savedCategory)
+    }
+
+    const savedCondition = localStorage.getItem(STORAGE_KEYS.SELECTED_CONDITION)
+    if (savedCondition && savedCondition !== 'null') {
+      setSelectedCondition(savedCondition)
+    }
+
+    const savedSearch = localStorage.getItem(STORAGE_KEYS.SEARCH_QUERY)
+    if (savedSearch) {
+      setSearchQuery(savedSearch)
+    }
+
+    setIsRestoringState(false)
   }, [])
 
-  // Get search query from URL (from Header search)
+  // Get search query from URL (overrides saved search)
   useEffect(() => {
     const search = searchParams?.get('search')
     if (search) {
       setSearchQuery(search)
-      localStorage.setItem('vehicle_last_search', search)
-    } else {
-      const lastSearch = localStorage.getItem('vehicle_last_search')
-      if (lastSearch) {
-        setSearchQuery(lastSearch)
-      }
     }
   }, [searchParams])
 
-  // Save view mode to localStorage when it changes
+  // Save filters whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.FILTERS, JSON.stringify(activeFilters))
+  }, [activeFilters])
+
+  // Save location state
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SELECTED_STATE, selectedState || 'null')
+  }, [selectedState])
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SELECTED_CITY, selectedCity || 'null')
+  }, [selectedCity])
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SELECTED_CATEGORY, selectedCategory || 'null')
+  }, [selectedCategory])
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SELECTED_CONDITION, selectedCondition || 'null')
+  }, [selectedCondition])
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SEARCH_QUERY, searchQuery || '')
+  }, [searchQuery])
+
+  // Save view mode and sort
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.VIEW_MODE, viewMode)
   }, [viewMode])
 
-  // Save sort to localStorage when it changes
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SORT_BY, sortBy)
   }, [sortBy])
 
-  // Get user location from profile
+  // CRITICAL FIX: Trigger fetch when state is restored
   useEffect(() => {
-    const getUserLocation = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          const { data, error } = await supabase
-            .from('users')
-            .select('city, state, country')
-            .eq('user_id', session.user.id)
-            .single()
+    if (!isRestoringState && !initialLoadDone && !isFetching) {
+      fetchVehicles(0, false)
+    }
+  }, [isRestoringState])
 
-          if (!error && data) {
-            setUserLocation({
-              city: data.city || '',
-              state: data.state || '',
-              country: data.country || ''
-            })
-          }
+  // Format location
+  const formatLocation = (city: string, country: string) => {
+    if (!city && !country) return 'Location Unknown'
+    let location = ''
+    if (city) {
+      const cityFirstWord = city.split(' ')[0]
+      location += cityFirstWord
+    }
+    if (country) {
+      const countryAbbr = country.slice(0, 2).toUpperCase()
+      location += location ? `, ${countryAbbr}` : countryAbbr
+    }
+    return location || 'Location Unknown'
+  }
+
+  // Get condition label
+  const getConditionLabel = (condition: string) => {
+    if (!condition) return 'Used'
+    const cond = condition.toLowerCase()
+    if (cond === 'brand new') return 'New'
+    if (cond === 'foreign used') return 'F-Used'
+    if (cond === 'local used') return 'L-Used'
+    return condition.charAt(0).toUpperCase() + condition.slice(1)
+  }
+
+  // Get location data for a state
+  const getLocationData = useCallback(async (state: string) => {
+    if (locationCache[state]) {
+      return locationCache[state]
+    }
+
+    try {
+      const response = await fetch(`/api/locations/cities?state=${encodeURIComponent(state)}`)
+      if (!response.ok) throw new Error('Failed to fetch location data')
+      const data = await response.json()
+      locationCache[state] = data.cities || []
+      return locationCache[state]
+    } catch (error) {
+      console.error('Error fetching location data:', error)
+      return []
+    }
+  }, [])
+
+  // Find LGA for a city name from location data
+  const findLGAForCity = useCallback((cityName: string, locationData: any[]) => {
+    const cityObj = locationData.find((item: any) => 
+      item.name && item.name.toLowerCase() === cityName.toLowerCase()
+    )
+    return cityObj?.lga || null
+  }, [])
+
+  // Get all cities in the same LGA
+  const getCitiesInLGA = useCallback((lga: string, locationData: any[]) => {
+    return locationData
+      .filter((item: any) => item.lga === lga)
+      .map((item: any) => item.name)
+  }, [])
+
+  // Build the Supabase query with location priority
+  const buildQuery = useCallback(async (from: number, to: number) => {
+    let query = supabase
+      .from('vehicles')
+      .select(`
+        *,
+        vehicle_promotions!left (
+          id,
+          package_type,
+          end_date,
+          is_active,
+          status
+        ),
+        vehicle_ratings!left (
+          rating
+        )
+      `, { count: 'exact' })
+      .eq('status', 'active')
+      .or('Removed.is.null,Removed.eq.false')
+
+    // Apply state filter (always applied if selected)
+    if (selectedState) {
+      query = query.eq('state', selectedState)
+    }
+
+    // Handle city filter with priority: exact city -> LGA -> state
+    if (selectedCity) {
+      const locationData = await getLocationData(selectedState || '')
+      const lga = findLGAForCity(selectedCity, locationData)
+      
+      if (lga) {
+        const citiesInLGA = getCitiesInLGA(lga, locationData)
+        
+        query = query.or(
+          `city.ilike.%${selectedCity}%,lga.eq.${lga},state.eq.${selectedState}`
+        )
+        
+        setSelectedLGA(lga)
+        setLocationInfo({
+          exactCity: false,
+          lga: lga,
+          state: selectedState
+        })
+        
+        if (citiesInLGA.length > 1) {
+          setLocationMessage(`Showing vehicles in "${selectedCity}" and other locations in ${lga} LGA`)
+        } else {
+          setLocationMessage(`Showing vehicles in "${selectedCity}" (${lga} LGA)`)
         }
-      } catch (err) {
-        console.error('Error fetching user location:', err)
+      } else {
+        query = query.or(
+          `city.ilike.%${selectedCity}%,state.eq.${selectedState}`
+        )
+        setSelectedLGA(null)
+        setLocationInfo({
+          exactCity: false,
+          lga: null,
+          state: selectedState
+        })
+        setLocationMessage(`Showing vehicles in "${selectedCity}" area`)
+      }
+    } else {
+      setSelectedLGA(null)
+      setLocationInfo(null)
+      setLocationMessage(null)
+    }
+
+    // Apply condition filter
+    if (selectedCondition) {
+      query = query.eq('condition', selectedCondition)
+    }
+
+    // Apply category filter
+    if (selectedCategory && selectedCategory !== 'all') {
+      if (selectedCategory === 'luxury') {
+        query = query.eq('luxury', true)
+      } else {
+        query = query.eq('category', selectedCategory)
       }
     }
 
-    getUserLocation()
+    // Apply brand filter from VehicleFilter
+    if (activeFilters.brand && activeFilters.brand !== '') {
+      query = query.ilike('brand', `%${activeFilters.brand}%`)
+    }
+
+    // Apply model filter from VehicleFilter
+    if (activeFilters.model && activeFilters.model !== '') {
+      query = query.ilike('model', `%${activeFilters.model}%`)
+    }
+
+    // Apply trim filter from VehicleFilter
+    if (activeFilters.trim && activeFilters.trim !== '') {
+      query = query.ilike('trim', `%${activeFilters.trim}%`)
+    }
+
+    // Apply location filter from VehicleFilter
+    if (activeFilters.location && activeFilters.location !== '') {
+      query = query.or(
+        `city.ilike.%${activeFilters.location}%,country.ilike.%${activeFilters.location}%`
+      )
+    }
+
+    // Apply color filter from VehicleFilter
+    if (activeFilters.color && activeFilters.color !== '') {
+      query = query.ilike('color', `%${activeFilters.color}%`)
+    }
+
+    // Apply transmission filter from VehicleFilter
+    if (activeFilters.transmission && activeFilters.transmission !== '') {
+      query = query.ilike('transmission', `%${activeFilters.transmission}%`)
+    }
+
+    // Apply price filters
+    if (activeFilters.minPrice && activeFilters.minPrice !== '') {
+      const min = parseInt(activeFilters.minPrice)
+      query = query.gte('price', min)
+    }
+
+    if (activeFilters.maxPrice && activeFilters.maxPrice !== '') {
+      const max = parseInt(activeFilters.maxPrice)
+      query = query.lte('price', max)
+    }
+
+    // Apply year filter
+    if (activeFilters.year && activeFilters.year !== '') {
+      query = query.eq('year', parseInt(activeFilters.year))
+    }
+
+    // Apply search query
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase()
+      query = query.or(
+        `title.ilike.%${searchLower}%,brand.ilike.%${searchLower}%,model.ilike.%${searchLower}%,description.ilike.%${searchLower}%`
+      )
+    }
+
+    // Apply sorting based on sortBy
+    switch (sortBy) {
+      case 'newest':
+        query = query.order('created_at', { ascending: false })
+        break
+      case 'price-low':
+        query = query.order('price', { ascending: true })
+        break
+      case 'price-high':
+        query = query.order('price', { ascending: false })
+        break
+      case 'rating':
+        query = query.order('created_at', { ascending: false })
+        break
+      default:
+        query = query.order('created_at', { ascending: false })
+    }
+
+    return query.range(from, to)
+  }, [selectedState, selectedCity, selectedCondition, selectedCategory, searchQuery, sortBy, activeFilters, getLocationData, findLGAForCity, getCitiesInLGA])
+
+  // Sort vehicles by promotion priority and rating
+  const sortByPromotionPriority = useCallback((vehicles: Vehicle[]) => {
+    return vehicles.sort((a, b) => {
+      const priorityA = a.is_promoted ? 
+        (a.promotion_package === 'premium' ? 3 : 
+         a.promotion_package === 'medium' ? 2 : 
+         a.promotion_package === 'basic' ? 1 : 0) : 0
+      const priorityB = b.is_promoted ? 
+        (b.promotion_package === 'premium' ? 3 : 
+         b.promotion_package === 'medium' ? 2 : 
+         b.promotion_package === 'basic' ? 1 : 0) : 0
+      
+      return priorityB - priorityA
+    })
   }, [])
 
-  // Fetch vehicles from Supabase with pagination
+  // Sort vehicles by rating (highest first)
+  const sortByRating = useCallback((vehicles: Vehicle[]) => {
+    return vehicles.sort((a, b) => {
+      const ratingA = a.rating || 0
+      const ratingB = b.rating || 0
+      return ratingB - ratingA
+    })
+  }, [])
+
+  // Fetch vehicles
   const fetchVehicles = useCallback(async (pageNum: number, append: boolean = true) => {
+    if (isFetching) return
+    
     try {
+      setIsFetching(true)
+      
       if (pageNum === 0) {
         setLoading(true)
+        setLocationMessage(null)
       } else {
         setLoadingMore(true)
       }
 
-      setDebugInfo(`Fetching vehicles page ${pageNum + 1}...`)
-      console.log(`🔍 Fetching vehicles page ${pageNum + 1}...`)
-
       const from = pageNum * PAGE_SIZE
       const to = from + PAGE_SIZE - 1
 
-      // Fetch vehicles with promotion info
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select(`
-          *,
-          vehicle_promotions!left (
-            id,
-            package_type,
-            end_date,
-            is_active,
-            status
-          )
-        `)
-        .eq('status', 'active')
-        .or('Removed.is.null,Removed.eq.false')
-        .order('created_at', { ascending: false })
-        .range(from, to)
+      const query = await buildQuery(from, to)
+      const { data, error, count } = await query
 
       if (error) {
-        console.error('❌ Error fetching vehicles:', error)
+        console.error('Error fetching vehicles:', error)
         setError(`Failed to load vehicles: ${error.message}`)
         setLoading(false)
         setLoadingMore(false)
+        setIsFetching(false)
         return
       }
-
-      console.log(`✅ Found ${data?.length || 0} vehicles (page ${pageNum + 1})`)
 
       if (!data || data.length === 0) {
         setHasMore(false)
         setLoading(false)
         setLoadingMore(false)
+        setIsFetching(false)
+        
+        if (selectedCity && selectedState) {
+          const locationData = await getLocationData(selectedState)
+          const lga = findLGAForCity(selectedCity, locationData)
+          
+          if (lga) {
+            setLocationMessage(`No vehicles found in "${selectedCity}" or ${lga} LGA. Showing all vehicles in ${selectedState}.`)
+          } else {
+            setLocationMessage(`No vehicles found in "${selectedCity}". Showing all vehicles in ${selectedState}.`)
+          }
+        }
         return
       }
 
-      // Transform data with promotion info
+      // Transform data with promotion info and ratings
       const transformedData = data.map((vehicle: any) => {
-        // Check if vehicle has an active promotion
         const activePromotion = vehicle.vehicle_promotions?.find(
           (p: any) => p.is_active === true && p.status === 'active'
         )
+
+        // Calculate average rating from vehicle_ratings
+        let avgRating = 0
+        if (vehicle.vehicle_ratings && vehicle.vehicle_ratings.length > 0) {
+          const total = vehicle.vehicle_ratings.reduce((sum: number, r: any) => sum + (r.rating || 0), 0)
+          avgRating = total / vehicle.vehicle_ratings.length
+        }
 
         return {
           ...vehicle,
@@ -241,39 +538,67 @@ function VehiclesContent() {
           promotion_package: activePromotion?.package_type || null,
           promotion_end_date: activePromotion?.end_date || null,
           featured_until: activePromotion?.end_date || null,
+          rating: avgRating || 0,
         }
       })
 
+      // Apply sorting based on sortBy
+      let sortedData = transformedData
+      
+      // First sort by promotion priority
+      sortedData = sortByPromotionPriority(sortedData)
+      
+      // Then apply the selected sort
+      if (sortBy === 'rating') {
+        sortedData = sortByRating(sortedData)
+      }
+
       if (append) {
-        setVehicles(prev => [...prev, ...transformedData])
-        setAllVehicles(prev => [...prev, ...transformedData])
+        setVehicles(prev => [...prev, ...sortedData])
+        setAllVehicles(prev => [...prev, ...sortedData])
       } else {
-        setVehicles(transformedData)
-        setAllVehicles(transformedData)
+        setVehicles(sortedData)
+        setAllVehicles(sortedData)
       }
 
       setHasMore(data.length === PAGE_SIZE)
       setLoading(false)
       setLoadingMore(false)
-      setIsInitialLoad(false)
+      setInitialLoadDone(true)
+      setIsFetching(false)
 
     } catch (err) {
-      console.error('❌ Unexpected error:', err)
+      console.error('Unexpected error:', err)
       setError('An unexpected error occurred')
       setDebugInfo(`Error: ${err}`)
       setLoading(false)
       setLoadingMore(false)
+      setIsFetching(false)
     }
-  }, [])
+  }, [buildQuery, isFetching, selectedCity, selectedState, getLocationData, findLGAForCity, sortByPromotionPriority, sortByRating, sortBy])
 
-  // Initial load
+  // Initial load - only runs when not restoring state
   useEffect(() => {
+    if (!isRestoringState && !initialLoadDone && !isFetching) {
+      fetchVehicles(0, false)
+    }
+  }, [isRestoringState])
+
+  // Fetch when filters change - but only after initial load
+  useEffect(() => {
+    if (!initialLoadDone || isRestoringState) return
+    
+    setVehicles([])
+    setAllVehicles([])
+    setFilteredVehicles([])
+    setPage(0)
+    setHasMore(true)
     fetchVehicles(0, false)
-  }, [fetchVehicles])
+  }, [selectedState, selectedCity, selectedCategory, selectedCondition, searchQuery, sortBy, activeFilters])
 
   // Setup intersection observer for infinite scroll
   useEffect(() => {
-    if (loading || loadingMore || !hasMore || isInitialLoad) return
+    if (loading || loadingMore || !hasMore || !initialLoadDone) return
 
     const options = {
       root: null,
@@ -283,7 +608,7 @@ function VehiclesContent() {
 
     observerRef.current = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting && hasMore && !loadingMore && !loading) {
+        if (entry.isIntersecting && hasMore && !loadingMore && !loading && !isFetching) {
           setPage(prev => prev + 1)
           fetchVehicles(page + 1, true)
         }
@@ -299,327 +624,92 @@ function VehiclesContent() {
         observerRef.current.disconnect()
       }
     }
-  }, [loading, loadingMore, hasMore, isInitialLoad, page, fetchVehicles])
+  }, [loading, loadingMore, hasMore, initialLoadDone, page, fetchVehicles, isFetching])
 
-  // Reset pagination when filters change
-  useEffect(() => {
-    setVehicles([])
-    setAllVehicles([])
-    setPage(0)
-    setHasMore(true)
-    setIsInitialLoad(true)
-    fetchVehicles(0, false)
-  }, [searchQuery, selectedCategory, selectedCondition, activeFilters, sortBy, fetchVehicles])
-
-  // Format location
-  const formatLocation = (city: string, country: string) => {
-    if (!city && !country) return 'Location Unknown'
-    
-    let location = ''
-    if (city) {
-      const cityFirstWord = city.split(' ')[0]
-      location += cityFirstWord
-    }
-    
-    if (country) {
-      const countryAbbr = country.slice(0, 2).toUpperCase()
-      location += location ? `, ${countryAbbr}` : countryAbbr
-    }
-    
-    return location || 'Location Unknown'
-  }
-
-  // Get condition label
-  const getConditionLabel = (condition: string) => {
-    if (!condition) return 'Used'
-    const cond = condition.toLowerCase()
-    if (cond === 'brand new') return 'New'
-    if (cond === 'foreign used') return 'F-Used'
-    if (cond === 'local used') return 'L-Used'
-    return condition.charAt(0).toUpperCase() + condition.slice(1)
-  }
-
-  // Calculate location score for sorting
-  const getLocationScore = (vehicle: Vehicle) => {
-    if (!userLocation) return 0
-    
-    let score = 0
-    const { city, state, country } = userLocation
-    
-    if (city && vehicle.city && vehicle.city.toLowerCase().includes(city.toLowerCase())) {
-      score += 3
-    }
-    if (state && vehicle.state && vehicle.state.toLowerCase().includes(state.toLowerCase())) {
-      score += 2
-    }
-    if (country && vehicle.country && vehicle.country.toLowerCase().includes(country.toLowerCase())) {
-      score += 1
-    }
-    
-    return score
-  }
-
-  // Check if vehicle matches search query
-  const matchesSearch = (vehicle: Vehicle, query: string) => {
-    if (!query) return true
-    
-    const searchLower = query.toLowerCase().trim()
-    
-    const searchFields = [
-      vehicle.title,
-      vehicle.brand,
-      vehicle.model,
-      vehicle.trim,
-      vehicle.description,
-      vehicle.category,
-      vehicle.condition,
-      vehicle.color,
-      vehicle.interior_color,
-      vehicle.engine_type,
-      vehicle.car_code,
-      vehicle.vin,
-      `${vehicle.brand} ${vehicle.model}`,
-      `${vehicle.year} ${vehicle.brand} ${vehicle.model}`
-    ]
-    
-    return searchFields.some(field => 
-      field && field.toLowerCase().includes(searchLower)
-    )
-  }
-
-  // Get promotion priority score
-  const getPromotionPriority = (vehicle: Vehicle) => {
-    if (!vehicle.is_promoted || !vehicle.promotion_package) {
-      return PROMOTION_PRIORITY.none
-    }
-    return PROMOTION_PRIORITY[vehicle.promotion_package as keyof typeof PROMOTION_PRIORITY] || 0
-  }
-
-  // Interleave promoted vehicles with non-promoted ones
+  // Apply interleaving for promoted vehicles
   const interleaveVehicles = useCallback((filtered: Vehicle[]) => {
-    // Separate promoted and non-promoted vehicles
-    const promoted = filtered
-      .filter(v => v.is_promoted && v.promotion_package)
-      .sort((a, b) => {
-        // Sort by priority: premium > medium > basic
-        const priorityA = getPromotionPriority(a)
-        const priorityB = getPromotionPriority(b)
-        return priorityB - priorityA
-      })
+    const promoted = filtered.filter(v => v.is_promoted)
+    const nonPromoted = filtered.filter(v => !v.is_promoted)
 
-    const nonPromoted = filtered.filter(v => !v.is_promoted || !v.promotion_package)
-
-    // If no promoted vehicles, return filtered as is
     if (promoted.length === 0) {
       return filtered
     }
 
-    // Calculate how many promoted vehicles to show per batch
-    // Premium: show more frequently, Medium: moderately, Basic: occasionally
+    const premium = promoted.filter(v => v.promotion_package === 'premium')
+    const medium = promoted.filter(v => v.promotion_package === 'medium')
+    const basic = promoted.filter(v => v.promotion_package === 'basic')
+
     const result: Vehicle[] = []
-    let promotedIndex = 0
-    let nonPromotedIndex = 0
-
-    // Define insertion patterns based on promotion type
-    // Premium: show every 3-4 vehicles, Medium: every 5-6, Basic: every 8-10
-    const getInsertionGap = (vehicle: Vehicle) => {
-      const pkg = vehicle.promotion_package
-      if (pkg === 'premium') return 2 // Show premium frequently
-      if (pkg === 'medium') return 4
-      if (pkg === 'basic') return 7
-      return 5
-    }
-
-    let currentGap = 0
-    let promotedBatch: Vehicle[] = []
-
-    // Group promoted vehicles by package for better distribution
-    const premiumVehicles = promoted.filter(v => v.promotion_package === 'premium')
-    const mediumVehicles = promoted.filter(v => v.promotion_package === 'medium')
-    const basicVehicles = promoted.filter(v => v.promotion_package === 'basic')
-
-    // Create a distribution pool - premium gets more slots
     const distributionPool: Vehicle[] = []
     
-    // Premium: add 3 times to pool for higher frequency
-    premiumVehicles.forEach(v => {
-      distributionPool.push(v, v, v)
-    })
-    
-    // Medium: add 2 times
-    mediumVehicles.forEach(v => {
-      distributionPool.push(v, v)
-    })
-    
-    // Basic: add 1 time
-    basicVehicles.forEach(v => {
-      distributionPool.push(v)
-    })
+    premium.forEach(v => distributionPool.push(v, v, v))
+    medium.forEach(v => distributionPool.push(v, v))
+    basic.forEach(v => distributionPool.push(v))
 
-    // Shuffle the distribution pool for randomness
-    const shuffledPool = distributionPool.sort(() => Math.random() - 0.5)
-
-    // Interleave with smart positioning
     let poolIndex = 0
-    let counter = 0
+    let nonPromotedIndex = 0
 
-    while (nonPromotedIndex < nonPromoted.length || poolIndex < shuffledPool.length) {
-      // Add a promoted vehicle occasionally
-      if (poolIndex < shuffledPool.length && (counter % getInsertionGap(shuffledPool[poolIndex]) === 0 || counter === 0)) {
-        result.push(shuffledPool[poolIndex])
+    while (nonPromotedIndex < nonPromoted.length || poolIndex < distributionPool.length) {
+      if (poolIndex < distributionPool.length && (result.length % 3 === 0 || result.length === 0)) {
+        result.push(distributionPool[poolIndex])
         poolIndex++
-        counter = 0
       } else if (nonPromotedIndex < nonPromoted.length) {
         result.push(nonPromoted[nonPromotedIndex])
         nonPromotedIndex++
-        counter++
-      } else if (poolIndex < shuffledPool.length) {
-        // If no more non-promoted, add remaining promoted
-        result.push(shuffledPool[poolIndex])
-        poolIndex++
       } else {
-        break
+        result.push(distributionPool[poolIndex])
+        poolIndex++
       }
     }
 
     return result
   }, [])
 
-  // Apply all filters and sorting with promotion interleaving
-  const applyFilters = useCallback(() => {
-    let filtered = [...allVehicles]
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(vehicle => matchesSearch(vehicle, searchQuery))
-    }
-
-    // Category filter - including luxury special handling
-    if (selectedCategory && selectedCategory !== 'all') {
-      if (selectedCategory === 'luxury') {
-        filtered = filtered.filter(car => car.luxury === true)
-      } else {
-        filtered = filtered.filter(car => car.category === selectedCategory)
-      }
-    }
-
-    // Condition filter
-    if (selectedCondition) {
-      filtered = filtered.filter(car => 
-        car.condition && car.condition.toLowerCase() === selectedCondition.toLowerCase()
-      )
-    }
-
-    // Brand filter
-    if (activeFilters.brand && activeFilters.brand !== '') {
-      filtered = filtered.filter(car => 
-        car.brand.toLowerCase().includes(activeFilters.brand.toLowerCase())
-      )
-    }
-
-    // Model filter
-    if (activeFilters.model && activeFilters.model !== '') {
-      filtered = filtered.filter(car => 
-        car.model.toLowerCase().includes(activeFilters.model.toLowerCase())
-      )
-    }
-
-    // Location filter
-    if (activeFilters.location && activeFilters.location !== '') {
-      filtered = filtered.filter(car => 
-        (car.city && car.city.toLowerCase().includes(activeFilters.location.toLowerCase())) ||
-        (car.country && car.country.toLowerCase().includes(activeFilters.location.toLowerCase()))
-      )
-    }
-
-    // Color filter
-    if (activeFilters.color && activeFilters.color !== '') {
-      filtered = filtered.filter(car => 
-        car.color && car.color.toLowerCase().includes(activeFilters.color.toLowerCase())
-      )
-    }
-
-    // Transmission filter
-    if (activeFilters.transmission && activeFilters.transmission !== '') {
-      filtered = filtered.filter(car => 
-        car.transmission && car.transmission.toLowerCase().includes(activeFilters.transmission.toLowerCase())
-      )
-    }
-
-    // Price filter
-    if (activeFilters.minPrice && activeFilters.minPrice !== '') {
-      const min = parseInt(activeFilters.minPrice)
-      filtered = filtered.filter(car => car.price >= min)
-    }
-
-    if (activeFilters.maxPrice && activeFilters.maxPrice !== '') {
-      const max = parseInt(activeFilters.maxPrice)
-      filtered = filtered.filter(car => car.price <= max)
-    }
-
-    // Year filter
-    if (activeFilters.year && activeFilters.year !== '') {
-      filtered = filtered.filter(car => 
-        car.year.toString() === activeFilters.year
-      )
-    }
-
-    // Sort by location proximity first, then by selected sort
-    filtered.sort((a, b) => {
-      const scoreA = getLocationScore(a)
-      const scoreB = getLocationScore(b)
-      
-      if (scoreA !== scoreB) {
-        return scoreB - scoreA
-      }
-      
-      switch (sortBy) {
-        case 'newest':
-          return b.year - a.year
-        case 'price-low':
-          return a.price - b.price
-        case 'price-high':
-          return b.price - a.price
-        case 'rating':
-          const ratingA = a.rating || 0
-          const ratingB = b.rating || 0
-          return ratingB - ratingA
-        default:
-          return 0
-      }
-    })
-
-    // Interleave promoted vehicles with non-promoted
-    const interleaved = interleaveVehicles(filtered)
-    setFilteredVehicles(interleaved)
-  }, [allVehicles, searchQuery, selectedCategory, selectedCondition, activeFilters, sortBy, userLocation, interleaveVehicles])
-
-  // Re-apply filters when any dependency changes
+  // Apply interleaving to vehicles
   useEffect(() => {
-    if (allVehicles.length > 0) {
-      applyFilters()
+    if (allVehicles.length === 0) {
+      setFilteredVehicles([])
+      return
     }
-  }, [allVehicles, selectedCategory, selectedCondition, activeFilters, sortBy, userLocation, searchQuery, applyFilters])
 
-  // Handle filter changes from VehicleFilter component
+    const interleaved = interleaveVehicles(allVehicles)
+    setFilteredVehicles(interleaved)
+  }, [allVehicles, interleaveVehicles])
+
+  // Handle filter changes from VehicleFilter
   const handleFilterChange = (filters: FilterState) => {
+    console.log('Filter changed:', filters)
     setActiveFilters(filters)
   }
 
-  // Handle category selection
   const handleCategorySelect = (categoryId: string | null) => {
     setSelectedCategory(categoryId)
   }
 
-  // Handle condition selection
   const handleConditionSelect = (condition: string | null) => {
     setSelectedCondition(condition)
   }
 
-  // Clear search
+  const handleStateSelect = (state: string | null) => {
+    setSelectedState(state)
+    setLocationMessage(null)
+    setSelectedLGA(null)
+    setLocationInfo(null)
+    if (state === null) {
+      setSelectedCity(null)
+      locationCache = {}
+    }
+  }
+
+  const handleCitySelect = (city: string | null) => {
+    setSelectedCity(city)
+    setSelectedLGA(null)
+    setLocationMessage(null)
+    setLocationInfo(null)
+  }
+
   const clearSearch = () => {
     setSearchQuery('')
-    localStorage.removeItem('vehicle_last_search')
     window.history.replaceState({}, '', '/vehicles')
   }
 
@@ -627,6 +717,8 @@ function VehiclesContent() {
     let count = Object.values(activeFilters).filter(v => v && v !== '').length
     if (selectedCategory && selectedCategory !== 'all') count++
     if (selectedCondition) count++
+    if (selectedState) count++
+    if (selectedCity) count++
     if (searchQuery) count++
     return count
   }
@@ -639,7 +731,7 @@ function VehiclesContent() {
     setIsFilterOpen(true)
   }
 
-  // Get promotion badge details - SILVER THEME
+  // Get promotion badge
   const getPromotionBadge = (vehicle: Vehicle) => {
     if (!vehicle.is_promoted || !vehicle.promotion_package) return null
     
@@ -668,7 +760,7 @@ function VehiclesContent() {
   }
 
   // Loading state
-  if (loading && isInitialLoad) {
+  if (!initialLoadDone && loading) {
     return (
       <div className="min-h-screen bg-black">
         <Header />
@@ -682,7 +774,7 @@ function VehiclesContent() {
   }
 
   // Error state
-  if (error) {
+  if (error && !initialLoadDone) {
     return (
       <div className="min-h-screen bg-black">
         <Header />
@@ -711,32 +803,166 @@ function VehiclesContent() {
       <Header />
       
       <main className="pb-24 md:pb-6">
-        {/* Sticky Category Bar - Now sticky with z-index */}
+        {/* Sticky Category Bar */}
         <div className="sticky top-14 md:top-16 z-30 bg-black/95 backdrop-blur-md border-b border-white/5">
           <VehicleCategory 
             selectedCategory={selectedCategory}
             onSelectCategory={handleCategorySelect}
             selectedCondition={selectedCondition}
             onSelectCondition={handleConditionSelect}
+            selectedState={selectedState}
+            onSelectState={handleStateSelect}
+            selectedCity={selectedCity}
+            onSelectCity={handleCitySelect}
           />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1 sm:py-2">
-          {/* Search Query Display */}
-          {searchQuery && (
-            <div className="flex items-center gap-2 mb-3 px-3 py-1.5 bg-white/5 rounded-full w-fit">
-              <span className="text-xs text-white/40">Search results for:</span>
-              <span className="text-xs font-medium text-white">"{searchQuery}"</span>
-              <button
-                onClick={clearSearch}
-                className="text-white/40 hover:text-white/60 transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
+          {/* Location Message */}
+          {locationMessage && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <Info className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+              <p className="text-[10px] text-blue-300">{locationMessage}</p>
             </div>
           )}
 
-          {/* Sticky Filter Bar */}
+          {/* Active Filters Display */}
+          {(selectedState || selectedCity || selectedCategory || selectedCondition || searchQuery || 
+            Object.values(activeFilters).some(v => v && v !== '')) && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              {selectedState && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  📍 {selectedState}
+                  <button onClick={() => handleStateSelect(null)} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {selectedCity && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  🏙️ {selectedCity}
+                  <button onClick={() => handleCitySelect(null)} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {selectedLGA && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full text-[10px]">
+                  📌 {selectedLGA} LGA
+                  <button onClick={() => {
+                    setSelectedLGA(null)
+                    setSelectedCity(null)
+                  }} className="hover:text-blue-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {selectedCategory && selectedCategory !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  {selectedCategory}
+                  <button onClick={() => handleCategorySelect(null)} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {selectedCondition && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  {selectedCondition}
+                  <button onClick={() => handleConditionSelect(null)} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {searchQuery && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  "{searchQuery}"
+                  <button onClick={clearSearch} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {/* Show active filter badges from VehicleFilter */}
+              {activeFilters.brand && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  Brand: {activeFilters.brand}
+                  <button onClick={() => setActiveFilters(prev => ({ ...prev, brand: '' }))} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {activeFilters.model && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  Model: {activeFilters.model}
+                  <button onClick={() => setActiveFilters(prev => ({ ...prev, model: '' }))} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {activeFilters.trim && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  Trim: {activeFilters.trim}
+                  <button onClick={() => setActiveFilters(prev => ({ ...prev, trim: '' }))} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {activeFilters.color && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  Color: {activeFilters.color}
+                  <button onClick={() => setActiveFilters(prev => ({ ...prev, color: '' }))} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {activeFilters.transmission && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  Transmission: {activeFilters.transmission}
+                  <button onClick={() => setActiveFilters(prev => ({ ...prev, transmission: '' }))} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {activeFilters.year && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded-full text-[10px]">
+                  Year: {activeFilters.year}
+                  <button onClick={() => setActiveFilters(prev => ({ ...prev, year: '' }))} className="hover:text-red-300">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {getActiveFilterCount() > 0 && (
+                <button 
+                  onClick={() => {
+                    setSelectedState(null)
+                    setSelectedCity(null)
+                    setSelectedLGA(null)
+                    setSelectedCategory(null)
+                    setSelectedCondition(null)
+                    setSearchQuery('')
+                    setLocationMessage(null)
+                    setLocationInfo(null)
+                    setActiveFilters({
+                      brand: '',
+                      model: '',
+                      trim: '',
+                      location: '',
+                      color: '',
+                      transmission: '',
+                      minPrice: '',
+                      maxPrice: '',
+                      year: ''
+                    })
+                    locationCache = {}
+                  }}
+                  className="text-[10px] text-red-400 hover:text-red-300"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Filter Bar */}
           <div className="sticky top-[calc(14+56px)] md:top-[calc(16+64px)] z-20 bg-black/95 backdrop-blur-md -mx-4 px-4 py-1 sm:py-2 border-b border-white/5">
             <div className="flex items-center justify-between gap-1">
               <div className="flex items-center gap-1 flex-shrink-0">
@@ -745,14 +971,19 @@ function VehiclesContent() {
                   className="flex items-center gap-1 px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded-full text-[10px] font-medium text-white/80 transition-colors border border-white/5 hover:border-white/10"
                 >
                   <Filter className="w-2.5 h-2.5" />
-                  <span className="hidden sm:inline text-[10px]">Filters</span>
+                  <span className="text-[10px]">Filters</span>
                   {getActiveFilterCount() > 0 && (
                     <span className="px-1 py-0.5 bg-red-500 text-white rounded-full text-[8px]">
                       {getActiveFilterCount()}
                     </span>
                   )}
                 </button>
-                {/* Vehicle count removed - no longer displayed */}
+                <span className="text-[10px] text-white/30 ml-2">
+                  {loading ? 'Loading...' : `${filteredVehicles.length} vehicles`}
+                </span>
+                {loading && (
+                  <Loader2 className="w-3 h-3 text-red-500 animate-spin ml-1" />
+                )}
               </div>
 
               <div className="flex items-center gap-1 flex-shrink-0">
@@ -797,7 +1028,6 @@ function VehiclesContent() {
                 <button
                   onClick={toggleViewMode}
                   className="md:hidden p-0.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-white/5 hover:border-white/10"
-                  aria-label={viewMode === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
                 >
                   {viewMode === 'grid' ? (
                     <List className="w-3 h-3 text-white/60" />
@@ -811,7 +1041,14 @@ function VehiclesContent() {
 
           {allVehicles.length === 0 && !loading ? (
             <div className="text-center py-12">
-              <div className="text-white/40 text-sm mb-2">No vehicles available</div>
+              <div className="text-white/40 text-sm mb-2">
+                {selectedCity 
+                  ? `No vehicles found in "${selectedCity}" area${selectedState ? `, ${selectedState}` : ''}`
+                  : selectedState 
+                    ? `No vehicles found in ${selectedState}` 
+                    : 'No vehicles available'
+                }
+              </div>
               {debugInfo && (
                 <div className="text-xs text-white/30">{debugInfo}</div>
               )}
@@ -839,9 +1076,6 @@ function VehiclesContent() {
                         delay: Math.min(delay, 0.5),
                         duration: isPromoted ? 0.6 : 0.4,
                         ease: isPromoted ? [0.34, 1.56, 0.64, 1] : "easeOut",
-                        type: isPromoted ? "spring" : "tween",
-                        stiffness: isPromoted ? 100 : undefined,
-                        damping: isPromoted ? 12 : undefined
                       }}
                       className={isPromoted ? 'relative' : ''}
                     >
@@ -888,6 +1122,7 @@ function VehiclesContent() {
                           car_code: car.car_code || undefined,
                           is_promoted: car.is_promoted || false,
                           promotion_package: car.promotion_package || undefined,
+                          rating: car.rating || 0,
                         }} 
                         index={index} 
                       />
@@ -898,10 +1133,7 @@ function VehiclesContent() {
 
               {/* Load More Trigger */}
               {hasMore && !loading && filteredVehicles.length > 0 && (
-                <div 
-                  ref={loadMoreRef}
-                  className="flex items-center justify-center py-8"
-                >
+                <div ref={loadMoreRef} className="flex items-center justify-center py-8">
                   {loadingMore ? (
                     <div className="flex items-center gap-3">
                       <Loader2 className="w-5 h-5 text-red-500 animate-spin" />
@@ -913,7 +1145,6 @@ function VehiclesContent() {
                 </div>
               )}
 
-              {/* End of results */}
               {!hasMore && filteredVehicles.length > 0 && (
                 <div className="text-center py-8">
                   <p className="text-xs text-white/20">You've reached the end</p>
@@ -923,10 +1154,7 @@ function VehiclesContent() {
               {filteredVehicles.length === 0 && allVehicles.length > 0 && (
                 <div className="text-center py-8">
                   <p className="text-white/40 text-sm">
-                    {searchQuery 
-                      ? `No vehicles found matching "${searchQuery}"`
-                      : 'No vehicles found matching your criteria'
-                    }
+                    No vehicles found matching your criteria
                   </p>
                 </div>
               )}
@@ -939,6 +1167,10 @@ function VehiclesContent() {
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         onFilterChange={handleFilterChange}
+        selectedState={selectedState}
+        selectedCity={selectedCity}
+        onStateChange={handleStateSelect}
+        onCityChange={handleCitySelect}
       />
 
       <BottomNav />
@@ -946,7 +1178,6 @@ function VehiclesContent() {
   )
 }
 
-// Main page component with Suspense boundary
 export default function VehiclesPage() {
   return (
     <Suspense fallback={

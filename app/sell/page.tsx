@@ -9,11 +9,40 @@ import SellComponent from '@/components/dashboard/Sell'
 import { supabase } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 
+// Storage keys for form persistence
+const SELL_FORM_STORAGE_KEY = 'sell_form_data'
+const SELL_IMAGES_STORAGE_KEY = 'sell_form_images'
+
 export default function SellPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState<any>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [savedFormData, setSavedFormData] = useState<any>(null)
+  const [savedImages, setSavedImages] = useState<any[]>([])
+
+  // Load saved form data and images from localStorage on mount
+  useEffect(() => {
+    try {
+      // Load form data
+      const savedData = localStorage.getItem(SELL_FORM_STORAGE_KEY)
+      if (savedData) {
+        const parsed = JSON.parse(savedData)
+        setSavedFormData(parsed)
+        console.log('✅ Restored saved form data:', parsed)
+      }
+
+      // Load images
+      const savedImagesData = localStorage.getItem(SELL_IMAGES_STORAGE_KEY)
+      if (savedImagesData) {
+        const parsed = JSON.parse(savedImagesData)
+        setSavedImages(parsed)
+        console.log('✅ Restored saved images:', parsed.length, 'images')
+      }
+    } catch (error) {
+      console.error('Error loading saved data:', error)
+    }
+  }, [])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -57,6 +86,47 @@ export default function SellPage() {
 
   const handleGoBack = () => {
     router.back()
+  }
+
+  // Handle form data change - save to localStorage
+  const handleFormDataChange = (data: any) => {
+    try {
+      localStorage.setItem(SELL_FORM_STORAGE_KEY, JSON.stringify(data))
+      console.log('💾 Saved form data:', data)
+    } catch (error) {
+      console.error('Error saving form data:', error)
+    }
+  }
+
+  // Handle images change - save to localStorage
+  const handleImagesChange = (images: any[]) => {
+    try {
+      // Only save image previews and metadata, not the actual File objects
+      const imagesData = images.map(img => ({
+        id: img.id,
+        preview: img.preview,
+        isCover: img.isCover,
+        // Store file name and size for reference
+        fileName: img.file?.name || '',
+        fileSize: img.file?.size || 0,
+        fileType: img.file?.type || '',
+      }))
+      localStorage.setItem(SELL_IMAGES_STORAGE_KEY, JSON.stringify(imagesData))
+      console.log('💾 Saved images:', imagesData.length, 'images')
+    } catch (error) {
+      console.error('Error saving images:', error)
+    }
+  }
+
+  // Handle form submit - clear saved data
+  const handleFormSubmit = () => {
+    try {
+      localStorage.removeItem(SELL_FORM_STORAGE_KEY)
+      localStorage.removeItem(SELL_IMAGES_STORAGE_KEY)
+      console.log('🗑️ Cleared saved form data after submission')
+    } catch (error) {
+      console.error('Error clearing form data:', error)
+    }
   }
 
   if (loading) {
@@ -192,7 +262,14 @@ export default function SellPage() {
       <Header />
       <main className="pb-24 md:pb-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <SellComponent userData={userData} />
+          <SellComponent 
+            userData={userData} 
+            savedFormData={savedFormData}
+            savedImages={savedImages}
+            onFormDataChange={handleFormDataChange}
+            onImagesChange={handleImagesChange}
+            onFormSubmit={handleFormSubmit}
+          />
         </div>
       </main>
       <BottomNav />
