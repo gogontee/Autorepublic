@@ -145,6 +145,10 @@ export default function VehicleDetailContent({
   // Get current user
   const [currentUser, setCurrentUser] = useState<any>(null)
 
+  // Touch swipe refs
+  const touchStartX = useRef(0)
+  const touchEndX = useRef(0)
+  const imageContainerRef = useRef<HTMLDivElement>(null)
 
   // Get current user
   useEffect(() => {
@@ -434,6 +438,28 @@ export default function VehicleDetailContent({
       return () => clearTimeout(timer)
     }
   }, [vehicle, vehicleId])
+
+  // Touch swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX
+  }
+
+  const handleTouchEnd = () => {
+    const swipeThreshold = 50
+    const diff = touchStartX.current - touchEndX.current
+
+    if (Math.abs(diff) > swipeThreshold) {
+      if (diff > 0 && currentImageIndex < images.length - 1) {
+        nextImage()
+      } else if (diff < 0 && currentImageIndex > 0) {
+        prevImage()
+      }
+    }
+  }
 
   // Fetch similar vehicles with promotion priority
   const fetchSimilarVehicles = async (currentVehicle: Vehicle) => {
@@ -863,7 +889,13 @@ export default function VehicleDetailContent({
             {/* Left Column - Images & Buyer Notice */}
             <div>
               {/* Main Image */}
-              <div className="relative bg-white/5 rounded-2xl overflow-hidden aspect-[4/3] border border-white/5">
+              <div 
+                ref={imageContainerRef}
+                className="relative bg-white/5 rounded-2xl overflow-hidden aspect-[4/3] border border-white/5"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
                 {isRemoved && (
                   <div className="absolute inset-0 bg-black/70 z-10 flex items-center justify-center">
                     <div className="text-center">
@@ -877,6 +909,7 @@ export default function VehicleDetailContent({
                   src={images[currentImageIndex]}
                   alt={vehicle.title}
                   className="w-full h-full object-cover"
+                  draggable={false}
                 />
                 
                 {/* Promotion Badge on Image */}
@@ -941,6 +974,13 @@ export default function VehicleDetailContent({
                         </span>
                       )}
                     </button>
+                  </div>
+                )}
+
+                {/* Swipe indicator hint - only on mobile */}
+                {images.length > 1 && !isRemoved && (
+                  <div className="absolute bottom-16 left-1/2 -translate-x-1/2 text-white/20 text-[10px] sm:hidden">
+                    ← Swipe →
                   </div>
                 )}
               </div>
@@ -1041,16 +1081,18 @@ export default function VehicleDetailContent({
               </div>
 
               {/* Views & Report Count - Only visible to owner */}
-              <div className="flex items-center gap-2 text-xs text-white/40 mb-3">
-                <Eye className="w-3.5 h-3.5 text-red-500" />
-                <span>{vehicle.views || 0} views</span>
-                {isOwner && vehicle.report_counts && vehicle.report_counts > 0 && (
-                  <span className="ml-2 flex items-center gap-1 text-yellow-500/60">
-                    <Flag className="w-3 h-3" />
-                    {vehicle.report_counts} reports
-                  </span>
-                )}
-              </div>
+              {isOwner && (
+                <div className="flex items-center gap-2 text-xs text-white/40 mb-3">
+                  <Eye className="w-3.5 h-3.5 text-red-500" />
+                  <span>{vehicle.views || 0} views</span>
+                  {isOwner && vehicle.report_counts && vehicle.report_counts > 0 && (
+                    <span className="ml-2 flex items-center gap-1 text-yellow-500/60">
+                      <Flag className="w-3 h-3" />
+                      {vehicle.report_counts} reports
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 p-3 sm:p-4 bg-white/5 rounded-xl border border-white/5">
@@ -1599,4 +1641,3 @@ export default function VehicleDetailContent({
     </div>
   )
 }
-
