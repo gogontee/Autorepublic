@@ -1,3 +1,4 @@
+// app/robots.ts
 import type { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
@@ -12,6 +13,9 @@ export default function robots(): MetadataRoute.Robots {
         '/payment/',
         '/api/',
         '/testads/',
+        '/_next/',
+        '/_vercel/',
+        '/_static/',
       ],
     },
     sitemap: 'https://autorepublic.ng/sitemap.xml',
