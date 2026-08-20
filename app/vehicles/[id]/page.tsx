@@ -43,6 +43,24 @@ export async function generateMetadata(
         index: false,
         follow: true,
       },
+      openGraph: {
+        title: 'Vehicle Listing | AutoRepublic',
+        description: 'Explore vehicles for sale in Nigeria on AutoRepublic.',
+        images: [
+          {
+            url: '/og-image.png',
+            width: 1200,
+            height: 630,
+            alt: 'AutoRepublic - Your Destination for Better Vehicles',
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: 'Vehicle Listing | AutoRepublic',
+        description: 'Explore vehicles for sale in Nigeria on AutoRepublic.',
+        images: ['/og-image.png'],
+      },
     }
   }
 
@@ -85,6 +103,31 @@ export async function generateMetadata(
 
   const canonicalUrl = `https://autorepublic.ng/vehicles/${vehicle.id}`
 
+  // Build the OG image - use vehicle cover image if available, otherwise fallback to og-image.png
+  const ogImages = vehicle.cover_image
+    ? [
+        {
+          url: vehicle.cover_image,
+          width: 1200,
+          height: 630,
+          alt: vehicleName,
+        },
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'AutoRepublic - Your Destination for Better Vehicles',
+        },
+      ]
+    : [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'AutoRepublic - Your Destination for Better Vehicles',
+        },
+      ]
+
   return {
     title,
 
@@ -125,25 +168,14 @@ export async function generateMetadata(
       siteName: 'AutoRepublic',
       title,
       description,
-      images: vehicle.cover_image
-        ? [
-            {
-              url: vehicle.cover_image,
-              width: 1200,
-              height: 630,
-              alt: vehicleName,
-            },
-          ]
-        : [],
+      images: ogImages,
     },
 
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: vehicle.cover_image
-        ? [vehicle.cover_image]
-        : [],
+      images: ogImages.map(img => img.url),
     },
   }
 }
