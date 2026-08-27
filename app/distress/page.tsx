@@ -48,8 +48,6 @@ interface Vehicle {
   starting_bid?: number
   reserve_price?: number
   auction_end_date?: string
-  current_bid?: number
-  bid_count?: number
 }
 
 interface FilterState {
@@ -237,8 +235,6 @@ function DistressContent() {
             is_promoted: !!activePromotion,
             promotion_package: activePromotion?.package_type || null,
             timeRemaining: timeRemaining,
-            current_bid: vehicle.current_bid || vehicle.starting_bid || vehicle.price,
-            bid_count: vehicle.bid_count || 0,
           }
         })
 
@@ -779,8 +775,6 @@ function DistressContent() {
                       // Distress-specific data to pass to CarCard
                       distress: true,
                       starting_bid: car.starting_bid,
-                      current_bid: car.current_bid,
-                      bid_count: car.bid_count,
                       auction_end_date: car.auction_end_date,
                       timeRemaining: (car as any).timeRemaining,
                     }} 

@@ -21,7 +21,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
-  Check
+  Check,
+  Hammer,
+  AlertTriangle
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import dynamic from 'next/dynamic'
@@ -195,6 +197,9 @@ export default function Sell({
     country: '',
     fullAddress: '',
     phone: profile?.phone || '',
+    isAuction: false,
+    hasDefects: false,
+    defects: '',
   }
 
   const [formData, setFormData] = useState(() => {
@@ -203,6 +208,9 @@ export default function Sell({
         ...defaultFormData,
         ...savedFormData,
         phone: savedFormData.phone || profile?.phone || '',
+        isAuction: savedFormData.isAuction || false,
+        hasDefects: savedFormData.hasDefects || false,
+        defects: savedFormData.defects || '',
       }
     }
     return defaultFormData
@@ -586,6 +594,22 @@ export default function Sell({
     if (error) setError('')
   }
 
+  // Handle auction toggle
+  const handleAuctionToggle = () => {
+    setFormData((prev: typeof formData) => ({ ...prev, isAuction: !prev.isAuction }))
+    if (error) setError('')
+  }
+
+  // Handle defects toggle
+  const handleDefectsToggle = () => {
+    setFormData((prev: typeof formData) => ({ 
+      ...prev, 
+      hasDefects: !prev.hasDefects,
+      defects: !prev.hasDefects ? prev.defects : '' // Clear defects when toggling off
+    }))
+    if (error) setError('')
+  }
+
   // Handle description change for rich text
   const handleDescriptionChange = (value: string) => {
     setFormData((prev: typeof formData) => ({ ...prev, description: value }))
@@ -678,6 +702,9 @@ export default function Sell({
       country: '',
       fullAddress: '',
       phone: profile?.phone || '',
+      isAuction: false,
+      hasDefects: false,
+      defects: '',
     })
     setImages([])
   }
@@ -697,6 +724,11 @@ export default function Sell({
 
     if (!formData.city || !formData.state) {
       setError('Please select a city and state')
+      return
+    }
+
+    if (formData.hasDefects && !formData.defects.trim()) {
+      setError('Please list the major defects of the vehicle')
       return
     }
 
@@ -768,6 +800,8 @@ export default function Sell({
           lga: lga || null,
           full_address: formData.fullAddress || null,
           phone: formData.phone || null,
+          distress: formData.isAuction,
+          defect: formData.hasDefects ? formData.defects : null,
           status: 'pending',
         })
         .select()
@@ -844,6 +878,16 @@ export default function Sell({
                 {formData.city && (
                   <p className="text-xs text-white/40 mt-1">
                     📍 {formData.city}, {formData.state}
+                  </p>
+                )}
+                {formData.isAuction && (
+                  <p className="text-xs text-amber-400 mt-1">
+                    🔨 Listed for Auction Sale
+                  </p>
+                )}
+                {formData.hasDefects && (
+                  <p className="text-xs text-red-400 mt-1">
+                    ⚠️ Major defects reported
                   </p>
                 )}
               </div>
@@ -1550,6 +1594,100 @@ export default function Sell({
               <p className="text-[10px] text-white/30 mt-1">
                 Enter the full address where the vehicle is located
               </p>
+            </div>
+
+            {/* Auction Toggle */}
+            <div className="sm:col-span-2">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg transition-colors ${formData.isAuction ? 'bg-amber-500/20' : 'bg-white/5'}`}>
+                      <Hammer className={`w-5 h-5 ${formData.isAuction ? 'text-amber-400' : 'text-white/40'}`} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-white/80 cursor-pointer">
+                        Auction Sale
+                      </label>
+                      <p className="text-xs text-white/40">
+                        Mark this vehicle as available for auction
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAuctionToggle}
+                    className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${
+                      formData.isAuction ? 'bg-amber-500' : 'bg-white/20'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
+                        formData.isAuction ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {formData.isAuction && (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">
+                    <Hammer className="w-3.5 h-3.5" />
+                    <span>This vehicle will be marked for auction sale</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Major Defects Toggle */}
+            <div className="sm:col-span-2">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg transition-colors ${formData.hasDefects ? 'bg-red-500/20' : 'bg-white/5'}`}>
+                      <AlertTriangle className={`w-5 h-5 ${formData.hasDefects ? 'text-red-400' : 'text-white/40'}`} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-white/80 cursor-pointer">
+                        Major Defects
+                      </label>
+                      <p className="text-xs text-white/40">
+                        Are there any major defects with this vehicle?
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDefectsToggle}
+                    className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${
+                      formData.hasDefects ? 'bg-red-500' : 'bg-white/20'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
+                        formData.hasDefects ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {formData.hasDefects && (
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2 mb-3">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Please list all major defects below</span>
+                    </div>
+                    <textarea
+                      name="defects"
+                      value={formData.defects}
+                      onChange={handleChange}
+                      required={formData.hasDefects}
+                      rows={4}
+                      className="w-full px-3 py-2 bg-white/5 border border-red-500/30 rounded-xl text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-red-500/50 transition-colors"
+                      placeholder="List all major defects such as: engine issues, transmission problems, structural damage, electrical faults, rust, accident history, etc."
+                    />
+                    <p className="text-[10px] text-white/30 mt-1">
+                      Be honest and thorough about any defects to maintain trust with buyers
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Description - Rich Text Editor */}

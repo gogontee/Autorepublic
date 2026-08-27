@@ -37,7 +37,9 @@ import {
   ChevronUp,
   Crown,
   Sparkles,
-  Flame
+  Flame,
+  Hammer,
+  Wrench
 } from 'lucide-react'
 import Header from '@/components/Header'
 import BottomNav from '@/components/BottomNav'
@@ -83,6 +85,8 @@ interface Vehicle {
   report_counts?: number
   is_promoted?: boolean
   promotion_package?: string | null
+  distress?: boolean
+  defect?: string | null
 }
 
 interface SellerProfile {
@@ -827,6 +831,8 @@ export default function VehicleDetailContent({
   const isUnavailable = vehicle.unavailable === true
   const isPromoted = vehicle.is_promoted || false
   const promotionPackage = vehicle.promotion_package
+  const isAuction = vehicle.distress === true
+  const hasDefect = vehicle.defect && vehicle.defect.trim().length > 0
 
   // Get promotion badge info
   const getPromotionBadge = () => {
@@ -920,6 +926,22 @@ export default function VehicleDetailContent({
                   </div>
                 )}
                 
+                {/* Auction Badge - Only show if not promoted and not removed */}
+                {isAuction && !isRemoved && !isPromoted && (
+                  <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/90 text-black backdrop-blur-sm shadow-lg border border-amber-400/30">
+                    <Hammer className="w-3.5 h-3.5" />
+                    On Auction
+                  </div>
+                )}
+                
+                {/* Auction Badge - when also promoted (positioned below promotion badge) */}
+                {isAuction && !isRemoved && isPromoted && (
+                  <div className="absolute top-16 left-4 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium bg-amber-500/90 text-black backdrop-blur-sm shadow-lg border border-amber-400/30">
+                    <Hammer className="w-3 h-3" />
+                    On Auction
+                  </div>
+                )}
+                
                 {/* Image Counter */}
                 {images.length > 1 && !isRemoved && (
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/70 backdrop-blur-sm rounded-full text-xs text-white/60">
@@ -945,8 +967,8 @@ export default function VehicleDetailContent({
                   </>
                 )}
 
-                {/* Condition Badge - Top Left (if no promotion) */}
-                {!isPromoted && !isRemoved && (
+                {/* Condition Badge - Top Left (if no promotion and no auction) */}
+                {!isPromoted && !isAuction && !isRemoved && (
                   <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium text-white backdrop-blur-sm ${conditionBadge.color}`}>
                     {conditionBadge.label}
                   </div>
@@ -1059,6 +1081,16 @@ export default function VehicleDetailContent({
                 <p className="text-xs sm:text-sm text-white/40">
                   {vehicle.brand} • {vehicle.model} • {vehicle.year}
                 </p>
+              </div>
+
+              {/* Defect Badge - Only */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {hasDefect && !isRemoved && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/90 text-white border border-red-400/30">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Has Defects
+                  </div>
+                )}
               </div>
 
               {/* Rating Section */}
@@ -1193,6 +1225,21 @@ export default function VehicleDetailContent({
                   </div>
                 )}
               </div>
+
+              {/* Defect Display - If vehicle has defects */}
+              {hasDefect && !isRemoved && (
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-red-400">Major Defects</p>
+                      <p className="text-xs sm:text-sm text-red-300/80 mt-0.5 whitespace-pre-wrap break-words">
+                        {vehicle.defect}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Description */}
               <div className="mb-4 sm:mb-6">

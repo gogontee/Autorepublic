@@ -11,7 +11,9 @@ import {
   Clock,
   Sparkles,
   Loader2,
-  Newspaper
+  Newspaper,
+  LayoutGrid,
+  List
 } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -58,6 +60,7 @@ export default function AutoUpdates({ className = '' }: AutoUpdatesProps) {
   const [blogLoading, setBlogLoading] = useState(true)
   const [selectedBlogCategory, setSelectedBlogCategory] = useState('All')
   const [blogSearchQuery, setBlogSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   // Fetch blogs
   useEffect(() => {
@@ -121,13 +124,43 @@ export default function AutoUpdates({ className = '' }: AutoUpdatesProps) {
   return (
     <div className={className}>
       {/* Blog Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-          <BookOpen className="w-5 h-5 text-red-400" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+            <BookOpen className="w-5 h-5 text-red-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Auto Updates</h2>
+            <p className="text-xs text-white/40 hidden sm:block">Expert insights, reviews, and automotive news</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-white">Auto Updates</h2>
-          <p className="text-xs text-white/40">Expert insights, reviews, and automotive news</p>
+        
+        {/* Grid/List Toggle */}
+        <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/5 flex-shrink-0">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-1.5 rounded-lg transition-all ${
+              viewMode === 'grid' 
+                ? 'bg-red-500 text-white' 
+                : 'text-white/40 hover:text-white/60 hover:bg-white/5'
+            }`}
+            aria-label="Grid view"
+            type="button"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-1.5 rounded-lg transition-all ${
+              viewMode === 'list' 
+                ? 'bg-red-500 text-white' 
+                : 'text-white/40 hover:text-white/60 hover:bg-white/5'
+            }`}
+            aria-label="List view"
+            type="button"
+          >
+            <List className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -153,6 +186,7 @@ export default function AutoUpdates({ className = '' }: AutoUpdatesProps) {
                   ? 'bg-red-500 text-white'
                   : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
               }`}
+              type="button"
             >
               {cat}
             </button>
@@ -160,14 +194,18 @@ export default function AutoUpdates({ className = '' }: AutoUpdatesProps) {
         </div>
       </div>
 
-      {/* Blog Grid */}
+      {/* Blog Grid/List */}
       {filteredBlogs.length === 0 ? (
         <div className="text-center py-12">
           <BookOpen className="w-12 h-12 text-white/20 mx-auto mb-4" />
           <p className="text-white/40">No articles found matching your criteria</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className={`grid gap-4 ${
+          viewMode === 'grid' 
+            ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' 
+            : 'grid-cols-1'
+        }`}>
           {filteredBlogs.map((blog, index) => (
             <motion.article
               key={blog.id}
@@ -176,18 +214,22 @@ export default function AutoUpdates({ className = '' }: AutoUpdatesProps) {
               transition={{ delay: index * 0.05 }}
               className={`bg-white/5 rounded-xl overflow-hidden border transition-all hover:border-white/10 hover:bg-white/10 group ${
                 blog.is_featured ? 'border-red-500/30' : 'border-white/5'
-              }`}
+              } ${viewMode === 'list' ? 'flex flex-col sm:flex-row' : ''}`}
             >
-              <Link href={`/blog/${blog.slug}`}>
-                <div className="relative">
+              <Link href={`/blog/${blog.slug}`} className={`flex ${viewMode === 'list' ? 'flex-col sm:flex-row w-full' : 'flex-col w-full'}`}>
+                <div className={`relative ${viewMode === 'list' ? 'sm:w-48 md:w-56 lg:w-64 flex-shrink-0' : 'w-full'}`}>
                   {blog.cover_image ? (
                     <img
                       src={blog.cover_image}
                       alt={blog.title}
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                      className={`w-full object-cover transition-transform duration-300 group-hover:scale-105 ${
+                        viewMode === 'list' ? 'h-48 sm:h-full' : 'h-40 sm:h-48'
+                      }`}
                     />
                   ) : (
-                    <div className="w-full h-48 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                    <div className={`w-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center ${
+                      viewMode === 'list' ? 'h-48 sm:h-full' : 'h-40 sm:h-48'
+                    }`}>
                       <Car className="w-12 h-12 text-white/20" />
                     </div>
                   )}
@@ -202,8 +244,8 @@ export default function AutoUpdates({ className = '' }: AutoUpdatesProps) {
                     {blog.read_time || 5} min read
                   </div>
                 </div>
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
+                <div className={`p-3 sm:p-4 flex-1 flex flex-col ${viewMode === 'list' ? 'sm:justify-center' : ''}`}>
+                  <div className="flex items-center gap-2 mb-1 sm:mb-2">
                     <span className="text-[10px] font-medium text-red-400">
                       {blog.category || 'General'}
                     </span>
@@ -212,25 +254,29 @@ export default function AutoUpdates({ className = '' }: AutoUpdatesProps) {
                       {formatDate(blog.published_at || blog.created_at)}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold text-white group-hover:text-red-400 transition-colors line-clamp-2">
+                  <h3 className={`font-semibold text-white group-hover:text-red-400 transition-colors ${
+                    viewMode === 'list' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm'
+                  } line-clamp-2`}>
                     {blog.title}
                   </h3>
                   {blog.excerpt && (
-                    <p className="text-xs text-white/40 mt-1 line-clamp-2">
+                    <p className={`text-white/40 mt-0.5 sm:mt-1 line-clamp-2 ${
+                      viewMode === 'list' ? 'text-sm' : 'text-[10px] sm:text-xs'
+                    }`}>
                       {blog.excerpt}
                     </p>
                   )}
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-                    <span className="text-[10px] text-white/30">
+                  <div className="flex items-center justify-between mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/5">
+                    <span className="text-[9px] sm:text-[10px] text-white/30">
                       By {blog.author || 'AutoRepublic'}
                     </span>
-                    <div className="flex items-center gap-3 text-[10px] text-white/30">
+                    <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-white/30">
                       <span className="flex items-center gap-0.5">
-                        <Eye className="w-3 h-3" />
+                        <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                         {blog.views || 0}
                       </span>
                       <span className="flex items-center gap-0.5">
-                        <Heart className="w-3 h-3" />
+                        <Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                         {blog.likes || 0}
                       </span>
                     </div>
