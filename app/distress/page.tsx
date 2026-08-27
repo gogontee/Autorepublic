@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import { Filter, Grid, List, ChevronDown, Loader2, AlertCircle, X, Search, Menu, Car, Crown, Zap, LayoutGrid, Sparkles } from 'lucide-react'
+import { Filter, Grid, List, ChevronDown, Loader2, AlertCircle, X, Search, Menu, Car, Zap, LayoutGrid, Sparkles, Gavel, Clock, Hammer } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -38,11 +38,18 @@ interface Vehicle {
   state: string
   country: string
   trim: string
+  distress?: boolean
   featured?: boolean
   location?: string
   conditionLabel?: string
   is_promoted?: boolean
   promotion_package?: string | null
+  // Distress-specific fields
+  starting_bid?: number
+  reserve_price?: number
+  auction_end_date?: string
+  current_bid?: number
+  bid_count?: number
 }
 
 interface FilterState {
@@ -56,13 +63,13 @@ interface FilterState {
   year: string
 }
 
-// Category dropdown options - EV page (exclude EV)
+// Category dropdown options - Distress page (removed distress, added sports and collections)
 const categories = [
   { id: 'all', label: 'All Vehicles', href: '/vehicles', icon: LayoutGrid },
-  { id: 'collections', label: 'AR Collections', href: '/collections', icon: Sparkles },
-  { id: 'luxury', label: 'Luxury Cars', href: '/luxury', icon: Crown },
+  { id: 'luxury', label: 'Luxury Cars', href: '/luxury', icon: Sparkles },
+  { id: 'collections', label: 'AR Collections', href: '/collections', icon: LayoutGrid },
   { id: 'sports', label: 'Sports Cars', href: '/sports', icon: Car },
-  { id: 'distress', label: 'Distress Sales', href: '/distress', icon: AlertCircle },
+  { id: 'evs', label: 'EV Cars', href: '/evs', icon: Zap },
 ]
 
 const conditionFilters = [
@@ -74,12 +81,12 @@ const conditionFilters = [
 
 // Keys for localStorage
 const STORAGE_KEYS = {
-  VIEW_MODE: 'evs_view_mode',
-  SORT_BY: 'evs_sort_by',
-  CONDITION: 'evs_condition'
+  VIEW_MODE: 'distress_view_mode',
+  SORT_BY: 'distress_sort_by',
+  CONDITION: 'distress_condition'
 }
 
-function EvsContent() {
+function DistressContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -128,9 +135,9 @@ function EvsContent() {
     const search = searchParams?.get('search')
     if (search) {
       setSearchQuery(search)
-      localStorage.setItem('evs_last_search', search)
+      localStorage.setItem('distress_last_search', search)
     } else {
-      const lastSearch = localStorage.getItem('evs_last_search')
+      const lastSearch = localStorage.getItem('distress_last_search')
       if (lastSearch) {
         setSearchQuery(lastSearch)
       }
@@ -154,14 +161,13 @@ function EvsContent() {
     }
   }, [selectedCondition])
 
-  // Fetch EV vehicles from Supabase
+  // Fetch distress vehicles from Supabase
   useEffect(() => {
-    const fetchEvVehicles = async () => {
+    const fetchDistressVehicles = async () => {
       try {
-        setDebugInfo('Fetching EV vehicles...')
-        console.log('🔍 Fetching EV vehicles from Supabase...')
+        setDebugInfo('Fetching distress vehicles...')
+        console.log('🔍 Fetching distress vehicles from Supabase...')
 
-        // Fetch vehicles where fuel_type is electric, hybrid, or plug-in hybrid
         const { data, error } = await supabase
           .from('vehicles')
           .select(`
@@ -175,13 +181,13 @@ function EvsContent() {
             )
           `)
           .eq('status', 'active')
-          .in('fuel_type', ['electric', 'hybrid', 'plug-in hybrid'])
+          .eq('distress', true)
           .or('Removed.is.null,Removed.eq.false')
           .order('created_at', { ascending: false })
 
         if (error) {
-          console.error('❌ Error fetching EV vehicles:', error)
-          setError(`Failed to load EV vehicles: ${error.message}`)
+          console.error('❌ Error fetching distress vehicles:', error)
+          setError(`Failed to load distress vehicles: ${error.message}`)
           setDebugInfo(`Error: ${error.message}`)
           setLoading(false)
           return
@@ -200,12 +206,39 @@ function EvsContent() {
             (p: any) => p.is_active === true && p.status === 'active'
           )
 
+          // Calculate auction time remaining
+          let timeRemaining = null
+          if (vehicle.auction_end_date) {
+            const endDate = new Date(vehicle.auction_end_date)
+            const now = new Date()
+            const diff = endDate.getTime() - now.getTime()
+            
+            if (diff > 0) {
+              const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+              const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+              const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+              
+              if (days > 0) {
+                timeRemaining = `${days}d ${hours}h`
+              } else if (hours > 0) {
+                timeRemaining = `${hours}h ${minutes}m`
+              } else {
+                timeRemaining = `${minutes}m`
+              }
+            } else {
+              timeRemaining = 'Ended'
+            }
+          }
+
           return {
             ...vehicle,
             location: formatLocation(vehicle.city, vehicle.country),
             conditionLabel: getConditionLabel(vehicle.condition),
             is_promoted: !!activePromotion,
             promotion_package: activePromotion?.package_type || null,
+            timeRemaining: timeRemaining,
+            current_bid: vehicle.current_bid || vehicle.starting_bid || vehicle.price,
+            bid_count: vehicle.bid_count || 0,
           }
         })
 
@@ -220,7 +253,7 @@ function EvsContent() {
       }
     }
 
-    fetchEvVehicles()
+    fetchDistressVehicles()
   }, [])
 
   // Format location
@@ -421,7 +454,7 @@ function EvsContent() {
   // Clear search
   const clearSearch = () => {
     setSearchQuery('')
-    localStorage.removeItem('evs_last_search')
+    localStorage.removeItem('distress_last_search')
   }
 
   const getActiveFilterCount = () => {
@@ -446,7 +479,7 @@ function EvsContent() {
         <Header />
         <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
           <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
-          <span className="text-white/60 ml-3">Loading electric vehicles...</span>
+          <span className="text-white/60 ml-3">Loading distress vehicles...</span>
         </div>
         <BottomNav />
       </div>
@@ -486,12 +519,12 @@ function EvsContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           {/* Page Header */}
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-              <span className="text-xl">⚡</span>
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <Gavel className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Electric Vehicles</h1>
-              <p className="text-xs text-white/40">Sustainable driving with zero emissions</p>
+              <h1 className="text-xl font-bold text-white">Distress Sales</h1>
+              <p className="text-xs text-white/40">Auction vehicles at special distress prices</p>
             </div>
           </div>
 
@@ -503,7 +536,7 @@ function EvsContent() {
                 <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <input
                   type="text"
-                  placeholder="Search electric vehicles..."
+                  placeholder="Search distress vehicles..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 bg-transparent border-none outline-none text-xs sm:text-sm text-white placeholder:text-white/30"
@@ -605,6 +638,19 @@ function EvsContent() {
             })}
           </div>
 
+          {/* Distress Banner - Special notice for auction vehicles */}
+          <div className="mb-4 p-3 bg-gradient-to-r from-red-500/10 to-amber-500/10 rounded-xl border border-red-500/20">
+            <div className="flex items-start gap-2">
+              <Clock className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs text-white/70">
+                  <span className="font-medium text-amber-400">Auction Alert:</span> These vehicles are available at special distress prices. 
+                  Place your bid quickly before time runs out!
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Controls Row */}
           <div className="flex items-center justify-between gap-1 mb-3">
             <div className="flex items-center gap-1 flex-shrink-0">
@@ -620,6 +666,9 @@ function EvsContent() {
                   </span>
                 )}
               </button>
+              <span className="text-[10px] text-white/30">
+                {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''}
+              </span>
             </div>
 
             <div className="flex items-center gap-1 flex-shrink-0">
@@ -678,8 +727,8 @@ function EvsContent() {
           {/* Vehicles Grid */}
           {vehicles.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">⚡</div>
-              <div className="text-white/40 text-sm mb-2">No electric vehicles available</div>
+              <div className="text-6xl mb-4">🔨</div>
+              <div className="text-white/40 text-sm mb-2">No distress vehicles available</div>
               {debugInfo && (
                 <div className="text-xs text-white/30">{debugInfo}</div>
               )}
@@ -688,8 +737,9 @@ function EvsContent() {
             <div className="text-center py-12">
               <p className="text-white/40 text-sm">
                 {searchQuery 
-                  ? `No electric vehicles found matching "${searchQuery}"`
-                  : 'No electric vehicles found matching your criteria'}
+                  ? `No distress vehicles found matching "${searchQuery}"`
+                  : 'No distress vehicles found matching your criteria'
+                }
               </p>
             </div>
           ) : (
@@ -726,6 +776,13 @@ function EvsContent() {
                       car_code: car.car_code || undefined,
                       is_promoted: car.is_promoted || false,
                       promotion_package: car.promotion_package || undefined,
+                      // Distress-specific data to pass to CarCard
+                      distress: true,
+                      starting_bid: car.starting_bid,
+                      current_bid: car.current_bid,
+                      bid_count: car.bid_count,
+                      auction_end_date: car.auction_end_date,
+                      timeRemaining: (car as any).timeRemaining,
                     }} 
                     index={index} 
                   />
@@ -748,14 +805,15 @@ function EvsContent() {
 }
 
 // Main page component with Suspense boundary
-export default function EvsPage() {
+export default function DistressPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white/60">Loading...</div>
+        <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+        <span className="text-white/60 ml-3">Loading...</span>
       </div>
     }>
-      <EvsContent />
+      <DistressContent />
     </Suspense>
   )
 }

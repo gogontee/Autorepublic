@@ -63,6 +63,7 @@ const categories = [
   { id: 'sports', label: 'Sports Cars', href: '/sports', icon: Car },
   { id: 'luxury', label: 'Luxury Cars', href: '/luxury', icon: Crown },
   { id: 'evs', label: 'EV Cars', href: '/evs', icon: Zap },
+  { id: 'distress', label: 'Distress Sales', href: '/distress', icon: AlertCircle },
 ]
 
 const conditionFilters = [

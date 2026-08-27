@@ -39,6 +39,7 @@ interface Vehicle {
   lga: string
   trim: string
   luxury?: boolean
+  distress?: boolean
   rating?: number
   reviews?: number
   location?: string
@@ -539,6 +540,7 @@ function VehiclesContent() {
           promotion_end_date: activePromotion?.end_date || null,
           featured_until: activePromotion?.end_date || null,
           rating: avgRating || 0,
+          distress: vehicle.distress || false,
         }
       })
 
@@ -1065,6 +1067,7 @@ function VehiclesContent() {
                 {filteredVehicles.map((car, index) => {
                   const promotionBadge = getPromotionBadge(car)
                   const isPromoted = car.is_promoted && car.promotion_package
+                  const isDistress = car.distress === true
                   const delay = index * 0.05
 
                   return (
@@ -1077,8 +1080,9 @@ function VehiclesContent() {
                         duration: isPromoted ? 0.6 : 0.4,
                         ease: isPromoted ? [0.34, 1.56, 0.64, 1] : "easeOut",
                       }}
-                      className={isPromoted ? 'relative' : ''}
+                      className={isPromoted || isDistress ? 'relative' : ''}
                     >
+                      {/* Promotion Badge - Top Left */}
                       {isPromoted && promotionBadge && (
                         <motion.div 
                           className={`absolute -top-1 -left-1 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-medium ${promotionBadge.color} border shadow-lg ${promotionBadge.glow} backdrop-blur-sm`}
@@ -1103,6 +1107,18 @@ function VehiclesContent() {
                         </motion.div>
                       )}
 
+                      {isDistress && (
+                        <motion.div 
+                          className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: Math.min(delay + 0.15, 0.65), duration: 0.5 }}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-transparent" />
+                          <div className="absolute inset-0 border rounded-xl border-red-500/20" />
+                        </motion.div>
+                      )}
+
                       <CarCard 
                         car={{
                           id: car.id,
@@ -1123,6 +1139,7 @@ function VehiclesContent() {
                           is_promoted: car.is_promoted || false,
                           promotion_package: car.promotion_package || undefined,
                           rating: car.rating || 0,
+                          distress: isDistress,
                         }} 
                         index={index} 
                       />

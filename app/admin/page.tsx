@@ -18,7 +18,8 @@ import {
   ChevronDown,
   Shield,
   BarChart3,
-  Home
+  Home,
+  BookOpen
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -34,6 +35,7 @@ import AdsManagement from '@/components/admin/AdsManagement'
 import MailboxManagement from '@/components/admin/Mailbox'
 import VehicleReportManagement from '@/components/admin/VehicleReport'
 import NotificationManagement from '@/components/admin/Notification'
+import BlogManagement from '@/components/admin/BlogManagement'
 
 type AdminSection = 
   | 'dashboard'
@@ -44,6 +46,7 @@ type AdminSection =
   | 'mailbox'
   | 'reports'
   | 'notifications'
+  | 'blog'
 
 interface NavItem {
   id: AdminSection
@@ -69,6 +72,7 @@ export default function AdminPage() {
     { id: 'mailbox', label: 'Mailbox', icon: Mail },
     { id: 'reports', label: 'Reports', icon: Flag },
     { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'blog', label: 'Blog', icon: BookOpen },
   ]
 
   // Check auth and admin role
@@ -139,6 +143,8 @@ export default function AdminPage() {
         return <VehicleReportManagement />
       case 'notifications':
         return <NotificationManagement />
+      case 'blog':
+        return <BlogManagement />
       default:
         return <DashboardOverview />
     }

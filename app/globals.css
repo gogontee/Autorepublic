@@ -59,3 +59,49 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+/* Add to your global CSS or component */
+.blog-content p {
+  margin-bottom: 1rem !important;
+  line-height: 1.8 !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+}
+
+.blog-content p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.blog-content br {
+  display: block;
+  content: "";
+  margin-top: 0.5rem;
+}
+
+.blog-content div {
+  margin-bottom: 1rem;
+}
+
+.blog-content h1, 
+.blog-content h2, 
+.blog-content h3 {
+  margin-top: 2rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.blog-content ul, 
+.blog-content ol {
+  margin: 1rem 0 !important;
+  padding-left: 1.5rem !important;
+}
+
+.blog-content li {
+  margin-bottom: 0.5rem !important;
+}
+
+.blog-content blockquote {
+  margin: 1rem 0 !important;
+  padding: 0.5rem 1rem !important;
+  border-left: 4px solid #ef4444 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 0 0.5rem 0.5rem 0 !important;
+}

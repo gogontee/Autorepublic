@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { MapPin, Fuel, Gauge, Star, Tag, Crown, Sparkles, Flame, Loader2 } from 'lucide-react'
+import { MapPin, Fuel, Gauge, Star, Tag, Crown, Sparkles, Flame, Loader2, Gavel } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -30,6 +30,15 @@ interface CarCardProps {
     is_promoted?: boolean
     promotion_package?: string
     rating?: number
+    // Distress property
+    distress?: boolean
+    // Additional distress fields
+    starting_bid?: number
+    current_bid?: number
+    bid_count?: number
+    auction_end_date?: string
+    timeRemaining?: string
+    reserve_price?: number
   }
   index: number
 }
@@ -65,6 +74,9 @@ export default function CarCard({ car, index }: CarCardProps) {
   
   // Format location
   const displayLocation = car.location || 'Location Unknown'
+
+  // Check if vehicle is on distress sale
+  const isDistress = car.distress === true
 
   // Get promotion badge - All silver theme
   const getPromotionBadge = () => {
@@ -300,10 +312,46 @@ export default function CarCard({ car, index }: CarCardProps) {
             {isPromoted && (
               <div className="absolute inset-0 pointer-events-none bg-white/5" />
             )}
+
+            {/* Distress Badge - Top Right */}
+            {isDistress && (
+              <motion.div 
+                className="absolute top-2 sm:top-3 right-2 sm:right-3 z-10 flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-red-500/90 backdrop-blur-sm text-white border border-red-400/30 shadow-lg shadow-red-500/20"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ 
+                  delay: 0.3, 
+                  type: "spring", 
+                  stiffness: 200,
+                  damping: 15
+                }}
+              >
+                <Gavel className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                <span className="text-[7px] sm:text-[10px] font-medium">Auction</span>
+              </motion.div>
+            )}
           </div>
 
-          {/* Promotion Badge - Silver Theme */}
-          {promotionBadge && (
+          {/* Promotion Badge - Silver Theme (Top Left) */}
+          {promotionBadge && !isDistress && (
+            <motion.div 
+              className={`absolute top-2 sm:top-3 left-2 sm:left-3 z-10 flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[7px] sm:text-[10px] font-medium ${promotionBadge.color} border backdrop-blur-sm shadow-lg`}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ 
+                delay: 0.2, 
+                type: "spring", 
+                stiffness: 200,
+                damping: 15
+              }}
+            >
+              <promotionBadge.icon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              {promotionBadge.label}
+            </motion.div>
+          )}
+
+          {/* Promotion Badge - When distress is also present (move to left) */}
+          {promotionBadge && isDistress && (
             <motion.div 
               className={`absolute top-2 sm:top-3 left-2 sm:left-3 z-10 flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[7px] sm:text-[10px] font-medium ${promotionBadge.color} border backdrop-blur-sm shadow-lg`}
               initial={{ scale: 0, opacity: 0 }}
@@ -327,8 +375,8 @@ export default function CarCard({ car, index }: CarCardProps) {
             </div>
           )}
           
-          {/* Condition Badge */}
-          {conditionLabel && (
+          {/* Condition Badge - Only show if no promotion or distress badge in that position */}
+          {conditionLabel && !promotionBadge && (
             <div className="absolute top-2 sm:top-3 left-2 sm:left-3 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-xs font-medium text-white backdrop-blur-sm z-10">
               {conditionLabel === 'New' && (
                 <span className="bg-green-500/80 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">
@@ -371,6 +419,16 @@ export default function CarCard({ car, index }: CarCardProps) {
                     </div>
                   </>
                 )}
+                {/* Distress indicator - small badge next to year */}
+                {isDistress && (
+                  <>
+                    <span className="text-[8px] sm:text-[10px] text-white/20">•</span>
+                    <span className="flex items-center gap-0.5 text-[8px] sm:text-[10px] text-red-400 font-medium">
+                      <Gavel className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      Distress
+                    </span>
+                  </>
+                )}
               </div>
             </div>
             <p className="text-sm sm:text-xl font-bold text-red-500 whitespace-nowrap ml-2">
@@ -392,6 +450,29 @@ export default function CarCard({ car, index }: CarCardProps) {
               <span className="truncate max-w-[60px] sm:max-w-none">{displayLocation}</span>
             </span>
           </div>
+
+          {/* Distress Auction Info - Show bid info if available */}
+          {isDistress && (car.current_bid || car.starting_bid) && (
+            <div className="mt-1.5 pt-1.5 border-t border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] text-amber-400">Current Bid:</span>
+                <span className="text-[9px] font-medium text-white">
+                  ${(car.current_bid || car.starting_bid || 0).toLocaleString()}
+                </span>
+                {car.bid_count && car.bid_count > 0 && (
+                  <span className="text-[8px] text-white/30">({car.bid_count} bids)</span>
+                )}
+              </div>
+              {car.timeRemaining && car.timeRemaining !== 'Ended' && (
+                <div className="flex items-center gap-1">
+                  <span className="text-[8px] text-amber-400">{car.timeRemaining} left</span>
+                </div>
+              )}
+              {car.timeRemaining === 'Ended' && (
+                <span className="text-[8px] text-red-400">Auction Ended</span>
+              )}
+            </div>
+          )}
 
           {/* Promotion indicator line - Subtle Silver */}
           {isPromoted && (

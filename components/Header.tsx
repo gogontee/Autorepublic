@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Menu, Search, User, X, LogOut, LayoutDashboard, Settings, ChevronDown, Info, Mail, Shield, HelpCircle } from 'lucide-react'
+import { Bell, Menu, Search, User, X, LogOut, LayoutDashboard, Settings, ChevronDown, Info, Mail, Shield, HelpCircle, BookOpen } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -35,6 +35,7 @@ export default function Header() {
     { href: '/sell', label: 'Sell' },
     { href: '/finance', label: 'Finance' },
     { href: '/compare', label: 'Compare' },
+    { href: '/research', label: 'Research' },
   ]
 
   const infoLinks = [
@@ -459,6 +460,16 @@ export default function Header() {
                         
                         <div className="border-t border-white/5 my-1" />
                         
+                        {/* Research link in dropdown */}
+                        <Link
+                          href="/research"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/60 hover:bg-white/5 hover:text-white transition-colors"
+                        >
+                          <BookOpen className="w-4 h-4" />
+                          Research & Blog
+                        </Link>
+                        
                         {/* About, Contact, Support, Legal links */}
                         <Link
                           href="/about"
@@ -633,6 +644,14 @@ export default function Header() {
                     className="px-3 py-2 text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white rounded-lg transition-colors text-left"
                   >
                     Profile Settings
+                  </Link>
+                  <Link
+                    href="/research"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="px-3 py-2 text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white rounded-lg transition-colors text-left flex items-center gap-2"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Research & Blog
                   </Link>
                   <button
                     onClick={handleSignOut}

@@ -1,4 +1,3 @@
-// components/AppTabs.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -10,7 +9,7 @@ import {
   Zap, 
   Car, 
   Sparkles, 
-  Clock,
+  Gavel,
   ChevronDown,
   Info
 } from 'lucide-react'
@@ -22,6 +21,7 @@ interface Tab {
   icon: any
   description: string
   action: string
+  color: string // Added color property
 }
 
 const tabs: Tab[] = [
@@ -31,7 +31,8 @@ const tabs: Tab[] = [
     href: '/vehicles', 
     icon: LayoutGrid,
     description: 'Browse all vehicles',
-    action: 'Browse all vehicles'
+    action: 'Browse all vehicles',
+    color: 'from-red-500/20 to-red-600/10'
   },
   { 
     id: 'luxury', 
@@ -39,15 +40,17 @@ const tabs: Tab[] = [
     href: '/luxury', 
     icon: Crown,
     description: 'Premium vehicles for excellence',
-    action: 'Explore luxury cars'
+    action: 'Explore luxury cars',
+    color: 'from-amber-500/20 to-amber-600/10'
   },
   { 
     id: 'evs', 
     label: 'EVs', 
     href: '/evs', 
     icon: Zap,
-    description: 'Zero emission electric vehicles',
-    action: 'Discover EVs'
+    description: 'Low/Zero emission electric vehicles',
+    action: 'Discover EVs',
+    color: 'from-green-500/20 to-green-600/10'
   },
   { 
     id: 'sports', 
@@ -55,7 +58,8 @@ const tabs: Tab[] = [
     href: '/sports', 
     icon: Car,
     description: 'High-performance speed machines',
-    action: 'View sports cars'
+    action: 'View sports cars',
+    color: 'from-blue-500/20 to-blue-600/10'
   },
   { 
     id: 'collections', 
@@ -63,15 +67,17 @@ const tabs: Tab[] = [
     href: '/collections', 
     icon: Sparkles,
     description: 'Curated exceptional vehicles',
-    action: 'Browse collections'
+    action: 'Browse collections',
+    color: 'from-purple-500/20 to-purple-600/10'
   },
   { 
-    id: 'preorder', 
-    label: 'Pre Order', 
-    href: '/preorder', 
-    icon: Clock,
-    description: 'Reserve upcoming vehicles',
-    action: 'Pre order now'
+    id: 'distress', 
+    label: 'Distress Sales', 
+    href: '/distress', 
+    icon: Gavel,
+    description: 'Auction vehicles at special prices',
+    action: 'Bid now',
+    color: 'from-red-500/20 to-red-600/10'
   },
 ]
 
@@ -106,6 +112,70 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
     router.push(tab.href)
   }
 
+  // Get the gradient color for a tab
+  const getTabColor = (tab: Tab, isActive: boolean, isMainMarket: boolean) => {
+    if (isMainMarket) {
+      return 'border-red-500 bg-red-500/10 shadow-lg shadow-red-500/20'
+    }
+    if (tab.id === 'distress') {
+      return isActive 
+        ? 'border-red-500 bg-red-500/10 shadow-lg shadow-red-500/20'
+        : 'border-amber-500/80 bg-amber-500/10 shadow-lg shadow-amber-500/20'
+    }
+    if (isActive) {
+      return 'border-red-500 bg-red-500/10 shadow-lg shadow-red-500/20'
+    }
+    return 'border-white/30 bg-white/5 hover:border-white/60 hover:bg-white/10'
+  }
+
+  // Get the icon color for a tab
+  const getIconColor = (tab: Tab, isActive: boolean, isMainMarket: boolean) => {
+    if (isMainMarket) return 'text-red-400'
+    if (tab.id === 'distress') {
+      return isActive ? 'text-red-400' : 'text-amber-400/80'
+    }
+    if (isActive) return 'text-red-400'
+    return 'text-white/60 group-hover:text-white/80'
+  }
+
+  // Get the label color for a tab
+  const getLabelColor = (tab: Tab, isActive: boolean, isMainMarket: boolean) => {
+    if (isMainMarket) return 'text-white'
+    if (tab.id === 'distress') {
+      return isActive ? 'text-red-400' : 'text-amber-400/80'
+    }
+    if (isActive) return 'text-white'
+    return 'text-white/60'
+  }
+
+  // Get the description text color
+  const getDescriptionColor = (tab: Tab, isActive: boolean, isMainMarket: boolean) => {
+    if (tab.id === 'distress') {
+      return 'text-amber-400/60'
+    }
+    return 'text-white/40'
+  }
+
+  // Get the action text color
+  const getActionColor = (tab: Tab, isActive: boolean, isMainMarket: boolean) => {
+    if (tab.id === 'distress') {
+      return 'text-amber-400/70'
+    }
+    return 'text-red-400/60'
+  }
+
+  // Get the border color for the description
+  const getDescriptionBorder = (tab: Tab, isActive: boolean, isMainMarket: boolean) => {
+    if (isMainMarket) return 'border-red-500 bg-red-500/5'
+    if (tab.id === 'distress') {
+      return isActive 
+        ? 'border-red-500 bg-red-500/5'
+        : 'border-amber-500/80 bg-amber-500/5'
+    }
+    if (isActive) return 'border-red-500 bg-red-500/5'
+    return 'border-white/30 bg-white/5 hover:bg-white/10'
+  }
+
   return (
     <div className={`w-full ${className}`}>
       {/* Grid of 3 columns on mobile, 6 columns on larger screens */}
@@ -123,17 +193,14 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
               whileTap={{ scale: 0.95 }}
               onClick={() => handleTabClick(tab)}
             >
-              {/* Main button area - top part */}
+              {/* Main button area - top part with gradient background */}
               <div
                 className={`
                   relative flex flex-col items-center justify-center gap-1 p-2.5 rounded-t-xl
                   border-2 border-b-0 transition-all duration-300 w-full
-                  ${isMainMarket 
-                    ? 'border-red-500 bg-red-500/10 shadow-lg shadow-red-500/20' 
-                    : isActive 
-                      ? 'border-red-500 bg-red-500/10 shadow-lg shadow-red-500/20' 
-                      : 'border-white/30 bg-white/5 hover:border-white/60 hover:bg-white/10'
-                  }
+                  ${getTabColor(tab, isActive, isMainMarket)}
+                  ${!isMainMarket && !isActive ? `bg-gradient-to-br ${tab.color} bg-opacity-50` : ''}
+                  ${isActive && tab.id !== 'main-market' ? 'bg-gradient-to-br from-red-500/20 via-red-500/10 to-transparent' : ''}
                 `}
               >
                 {/* Breathing animation for Main Market */}
@@ -152,27 +219,48 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
                   />
                 )}
 
+                {/* Pulsing glow for Distress Sales */}
+                {tab.id === 'distress' && !isActive && (
+                  <motion.div
+                    className="absolute inset-0 rounded-t-xl border-2 border-amber-500/20"
+                    animate={{
+                      scale: [1, 1.02, 1],
+                      opacity: [0.2, 0.5, 0.2],
+                    }}
+                    transition={{
+                      duration: 2.5,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                )}
+
+                {/* Background gradient glow for non-active tabs */}
+                {!isMainMarket && !isActive && (
+                  <div className={`absolute inset-0 rounded-t-xl bg-gradient-to-br ${tab.color} opacity-20`} />
+                )}
+
                 {/* Icon */}
                 <Icon 
-                  className={`w-5 h-5 transition-colors duration-300 ${
-                    isMainMarket || isActive ? 'text-red-400' : 'text-white/60 group-hover:text-white/80'
-                  }`}
+                  className={`w-5 h-5 transition-colors duration-300 ${getIconColor(tab, isActive, isMainMarket)} relative z-10`}
                 />
                 
-                {/* Label - increased text size */}
+                {/* Label */}
                 <span 
-                  className={`text-xs sm:text-sm font-medium transition-colors duration-300 text-center leading-tight ${
-                    isMainMarket || isActive ? 'text-white' : 'text-white/60'
-                  }`}
+                  className={`text-xs sm:text-sm font-medium transition-colors duration-300 text-center leading-tight relative z-10 ${getLabelColor(tab, isActive, isMainMarket)}`}
                 >
                   {tab.label}
                 </span>
 
-                {/* Active indicator - red glow (only for non-main-market tabs) */}
+                {/* Active indicator - colored glow */}
                 {isActive && !isMainMarket && (
                   <motion.div
                     layoutId="activeTabGrid"
-                    className="absolute -bottom-px left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-lg shadow-red-500/50"
+                    className={`absolute -bottom-px left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full shadow-lg ${
+                      tab.id === 'distress'
+                        ? 'bg-gradient-to-r from-amber-400 to-amber-500 shadow-amber-500/50'
+                        : 'bg-gradient-to-r from-red-400 to-red-500 shadow-red-500/50'
+                    }`}
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}
@@ -193,6 +281,22 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
                   />
                 )}
 
+                {/* Pulsing dot for Distress Sales */}
+                {tab.id === 'distress' && !isActive && (
+                  <motion.div
+                    className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500"
+                    animate={{
+                      scale: [1, 1.4, 1],
+                      opacity: [0.4, 1, 0.4],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                )}
+
                 {/* Hover glow effect */}
                 {!isMainMarket && !isActive && (
                   <motion.div
@@ -203,29 +307,26 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
                       transition: { duration: 0.2 }
                     }}
                   >
-                    <div className="absolute inset-0 bg-white/5 rounded-t-xl" />
+                    <div className={`absolute inset-0 rounded-t-xl bg-gradient-to-br ${tab.color} opacity-30`} />
                   </motion.div>
                 )}
               </div>
 
-              {/* Description - Always visible below the button - now clickable */}
+              {/* Description - with gradient border */}
               <div 
                 className={`
                   px-2.5 py-2 rounded-b-xl border-2 border-t-0 transition-all duration-300
-                  ${isMainMarket 
-                    ? 'border-red-500 bg-red-500/5' 
-                    : isActive 
-                      ? 'border-red-500 bg-red-500/5' 
-                      : 'border-white/30 bg-white/5 hover:bg-white/10'
-                  }
+                  ${getDescriptionBorder(tab, isActive, isMainMarket)}
+                  ${!isMainMarket && !isActive ? `bg-gradient-to-br ${tab.color} bg-opacity-30` : ''}
+                  ${isActive && tab.id !== 'main-market' ? 'bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent' : ''}
                 `}
               >
-                {/* Description text - slightly larger */}
-                <p className="text-[9px] sm:text-[10px] text-white/40 text-center leading-tight">
+                {/* Description text */}
+                <p className={`text-[9px] sm:text-[10px] text-center leading-tight ${getDescriptionColor(tab, isActive, isMainMarket)}`}>
                   {tab.description}
                 </p>
-                {/* Action text - slightly larger */}
-                <p className="text-[8px] sm:text-[9px] text-red-400/60 text-center mt-0.5 font-medium">
+                {/* Action text */}
+                <p className={`text-[8px] sm:text-[9px] text-center mt-0.5 font-medium ${getActionColor(tab, isActive, isMainMarket)}`}>
                   {tab.action}
                 </p>
               </div>
