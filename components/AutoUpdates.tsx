@@ -296,6 +296,21 @@ export default function AutoUpdates({ className = '' }: AutoUpdatesProps) {
           </p>
         </div>
       )}
+      <script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      itemListElement: filteredBlogs.slice(0, 20).map((blog, idx) => ({
+        '@type': 'ListItem',
+        position: idx + 1,
+        url: `https://autorepublic.ng/blog/${blog.slug}`,
+        name: blog.title,
+      })),
+    }),
+  }}
+/>
     </div>
   )
 }

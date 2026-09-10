@@ -1126,104 +1126,107 @@ export default function VehicleDetailContent({
                 </div>
               )}
 
-              {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 p-3 sm:p-4 bg-white/5 rounded-xl border border-white/5">
-                <div className="text-center">
-                  <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 mx-auto mb-1" />
-                  <p className="text-[10px] sm:text-xs text-white/40">Year</p>
-                  <p className="text-xs sm:text-sm font-medium text-white">{vehicle.year}</p>
+              {/* Vehicle Information Section - Well Aligned */}
+              <div className="mb-4 sm:mb-6 space-y-2 sm:space-y-3">
+                {/* Quick Stats - 3 columns */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 p-3 sm:p-4 bg-white/5 rounded-xl border border-white/5">
+                  <div className="flex flex-col items-center justify-center text-center min-h-[60px] sm:min-h-[70px]">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mb-1.5" />
+                    <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider">Year</p>
+                    <p className="text-xs sm:text-sm font-semibold text-white mt-0.5">{vehicle.year}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center text-center min-h-[60px] sm:min-h-[70px]">
+                    <Gauge className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mb-1.5" />
+                    <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider">Mileage</p>
+                    <p className="text-xs sm:text-sm font-semibold text-white mt-0.5">{vehicle.mileage || 'N/A'}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center text-center min-h-[60px] sm:min-h-[70px]">
+                    <Fuel className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mb-1.5" />
+                    <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider">Fuel</p>
+                    <p className="text-xs sm:text-sm font-semibold text-white mt-0.5 capitalize">{vehicle.fuel_type || 'N/A'}</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <Gauge className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 mx-auto mb-1" />
-                  <p className="text-[10px] sm:text-xs text-white/40">Mileage</p>
-                  <p className="text-xs sm:text-sm font-medium text-white">{vehicle.mileage || 'N/A'}</p>
-                </div>
-                <div className="text-center">
-                  <Fuel className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 mx-auto mb-1" />
-                  <p className="text-[10px] sm:text-xs text-white/40">Fuel</p>
-                  <p className="text-xs sm:text-sm font-medium text-white capitalize">{vehicle.fuel_type || 'N/A'}</p>
-                </div>
-              </div>
 
-              {/* More Specs */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6 p-3 sm:p-4 bg-white/5 rounded-xl border border-white/5">
-                <div className="text-center">
-                  <Car className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 mx-auto mb-1" />
-                  <p className="text-[10px] sm:text-xs text-white/40">Transmission</p>
-                  <p className="text-[10px] sm:text-sm font-medium text-white capitalize truncate">{vehicle.transmission || 'N/A'}</p>
+                {/* More Specs - 3 columns */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 p-3 sm:p-4 bg-white/5 rounded-xl border border-white/5">
+                  <div className="flex flex-col items-center justify-center text-center min-h-[60px] sm:min-h-[70px]">
+                    <Car className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mb-1.5" />
+                    <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider">Transmission</p>
+                    <p className="text-[10px] sm:text-xs font-semibold text-white mt-0.5 capitalize truncate w-full px-1">{vehicle.transmission || 'N/A'}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center text-center min-h-[60px] sm:min-h-[70px]">
+                    <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mb-1.5" />
+                    <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider">Category</p>
+                    <p className="text-[10px] sm:text-xs font-semibold text-white mt-0.5 capitalize truncate w-full px-1">{vehicle.category || 'N/A'}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center text-center min-h-[60px] sm:min-h-[70px]">
+                    <Star className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mb-1.5" />
+                    <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider">Trim</p>
+                    <p className="text-[10px] sm:text-xs font-semibold text-white mt-0.5 truncate w-full px-1">{vehicle.trim || 'N/A'}</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 mx-auto mb-1" />
-                  <p className="text-[10px] sm:text-xs text-white/40">Category</p>
-                  <p className="text-[10px] sm:text-sm font-medium text-white capitalize truncate">{vehicle.category || 'N/A'}</p>
-                </div>
-                <div className="text-center">
-                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 mx-auto mb-1" />
-                  <p className="text-[10px] sm:text-xs text-white/40">Trim</p>
-                  <p className="text-[10px] sm:text-sm font-medium text-white truncate">{vehicle.trim || 'N/A'}</p>
-                </div>
-              </div>
 
-              {/* Vehicle Specifications */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-6">
-                {vehicle.engine_type && (
-                  <div className="bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5 hover:border-white/10 transition-all">
-                    <div className="flex items-center gap-2 mb-1">
-                      <GaugeIcon className="w-3.5 h-3.5 text-red-400" />
-                      <p className="text-[10px] sm:text-xs text-white/40 font-medium">Engine</p>
+                {/* Engine & VIN - Aligned grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                  {vehicle.engine_type && (
+                    <div className="bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5 hover:border-white/10 transition-all flex flex-col items-center justify-center text-center min-h-[70px]">
+                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                        <GaugeIcon className="w-4 h-4 text-red-400" />
+                        <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider font-medium">Engine</p>
+                      </div>
+                      <p className="text-xs sm:text-sm font-semibold text-white">{vehicle.engine_type}</p>
                     </div>
-                    <p className="text-xs sm:text-sm font-medium text-white">{vehicle.engine_type}</p>
-                  </div>
-                )}
-                
-                {vehicle.vin && (
-                  <div className="bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5 hover:border-white/10 transition-all col-span-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Hash className="w-3.5 h-3.5 text-red-400" />
-                      <p className="text-[10px] sm:text-xs text-white/40 font-medium">VIN</p>
+                  )}
+                  
+                  {vehicle.vin && (
+                    <div className={`bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5 hover:border-white/10 transition-all flex flex-col items-center justify-center text-center min-h-[70px] ${!vehicle.engine_type ? 'sm:col-span-2' : ''}`}>
+                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                        <Hash className="w-4 h-4 text-red-400" />
+                        <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider font-medium">VIN</p>
+                      </div>
+                      <p className="text-[10px] sm:text-xs font-mono text-white/80 break-all">{vehicle.vin}</p>
                     </div>
-                    <p className="text-[10px] sm:text-xs font-mono text-white/80 break-all">{vehicle.vin}</p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              {/* Color & Tag Row */}
-              <div className="grid grid-cols-3 gap-2 mb-4 sm:mb-6">
-                {vehicle.color && (
-                  <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/5 text-center">
-                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                      <div 
-                        className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full border border-white/10 flex-shrink-0"
-                        style={{ backgroundColor: vehicle.color.toLowerCase() }}
-                      />
-                      <p className="text-[8px] sm:text-[10px] text-white/40 font-medium">Exterior</p>
+                {/* Colors & Tag - 3 columns aligned */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {vehicle.color && (
+                    <div className="bg-white/5 rounded-xl p-3 border border-white/5 flex flex-col items-center justify-center text-center min-h-[70px]">
+                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                        <div 
+                          className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0"
+                          style={{ backgroundColor: vehicle.color.toLowerCase() }}
+                        />
+                        <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider font-medium">Exterior</p>
+                      </div>
+                      <p className="text-[10px] sm:text-xs font-semibold text-white truncate w-full px-1">{vehicle.color}</p>
                     </div>
-                    <p className="text-[10px] sm:text-xs font-medium text-white truncate">{vehicle.color}</p>
-                  </div>
-                )}
-                
-                {vehicle.interior_color && (
-                  <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/5 text-center">
-                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                      <div 
-                        className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full border border-white/10 flex-shrink-0"
-                        style={{ backgroundColor: vehicle.interior_color.toLowerCase() }}
-                      />
-                      <p className="text-[8px] sm:text-[10px] text-white/40 font-medium">Interior</p>
+                  )}
+                  
+                  {vehicle.interior_color && (
+                    <div className="bg-white/5 rounded-xl p-3 border border-white/5 flex flex-col items-center justify-center text-center min-h-[70px]">
+                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                        <div 
+                          className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0"
+                          style={{ backgroundColor: vehicle.interior_color.toLowerCase() }}
+                        />
+                        <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider font-medium">Interior</p>
+                      </div>
+                      <p className="text-[10px] sm:text-xs font-semibold text-white truncate w-full px-1">{vehicle.interior_color}</p>
                     </div>
-                    <p className="text-[10px] sm:text-xs font-medium text-white truncate">{vehicle.interior_color}</p>
-                  </div>
-                )}
-                
-                {vehicle.car_code && (
-                  <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/5 text-center">
-                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                      <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-400" />
-                      <p className="text-[8px] sm:text-[10px] text-white/40 font-medium">Car Tag</p>
+                  )}
+                  
+                  {vehicle.car_code && (
+                    <div className="bg-white/5 rounded-xl p-3 border border-white/5 flex flex-col items-center justify-center text-center min-h-[70px]">
+                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                        <Tag className="w-4 h-4 text-red-400" />
+                        <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider font-medium">Car Tag</p>
+                      </div>
+                      <p className="text-[10px] sm:text-xs font-mono text-red-400 truncate w-full px-1">{vehicle.car_code}</p>
                     </div>
-                    <p className="text-[10px] sm:text-xs font-mono text-red-400 truncate">{vehicle.car_code}</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Defect Display - If vehicle has defects */}

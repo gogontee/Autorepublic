@@ -17,9 +17,13 @@ export default function robots(): MetadataRoute.Robots {
           '/_next/',
           '/_vercel/',
           '/_static/',
+          // Also block these if they exist
+          '/garage/',
+          '/checkout/',
+          '/private/',
         ],
       },
-      // Optional: Googlebot-specific rules (if you want different behavior for Google)
+      // Googlebot — same rules but explicitly declared (helps for clarity + GSC diagnostics)
       {
         userAgent: 'Googlebot',
         allow: '/',
@@ -29,8 +33,33 @@ export default function robots(): MetadataRoute.Robots {
           '/auth/',
           '/payment/',
           '/api/',
+          '/testads/',
+          '/garage/',
+          '/checkout/',
         ],
-        // Googlebot can handle Next.js internal files, so we don't block them
+      },
+      // Googlebot-Image — make sure blog/vehicle images are crawlable
+      {
+        userAgent: 'Googlebot-Image',
+        allow: [
+          '/blog/',
+          '/vehicles/',
+          '/images/',
+          '/uploads/',
+        ],
+        disallow: ['/admin/', '/dashboard/', '/auth/'],
+      },
+      // Bingbot — many Nigeria users land via Bing/Edge, so worth being explicit
+      {
+        userAgent: 'Bingbot',
+        allow: '/',
+        disallow: [
+          '/admin/',
+          '/dashboard/',
+          '/auth/',
+          '/payment/',
+          '/api/',
+        ],
       },
     ],
     sitemap: 'https://autorepublic.ng/sitemap.xml',

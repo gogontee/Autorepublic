@@ -1,59 +1,57 @@
-// app/blog/[slug]/page.tsx
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import Image from 'next/image'
-import { supabaseServer } from '@/lib/supabase/server'
-import BlogContent from './BlogContent'
+import { createClient } from '@supabase/supabase-js'
+import BlogContent from './BlogContent' // your existing 'use client' component
 
-interface BlogPageProps {
-  params: {
-    slug: string
-  }
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-// Generate metadata for the blog post
-export async function generateMetadata(
-  { params }: BlogPageProps
-): Promise<Metadata> {
-  const { data: blog, error } = await supabaseServer
+type Props = { params: { slug: string } }
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { data: blog } = await supabase
     .from('blogs')
-    .select('title, excerpt, cover_image, category, published_at, tags')
+    .select('title, excerpt, cover_image, category, tags, published_at, updated_at, author, slug')
     .eq('slug', params.slug)
     .eq('is_published', true)
     .single()
 
-  if (error || !blog) {
+  if (!blog) {
     return {
       title: 'Article Not Found | AutoRepublic',
-      description: 'The article you are looking for could not be found.',
-      robots: {
-        index: false,
-        follow: true,
-      },
+      robots: { index: false, follow: false },
     }
   }
 
-  const canonicalUrl = `https://autorepublic.ng/blog/${params.slug}`
+  const url = `https://autorepublic.ng/blog/${blog.slug}`
+  const description = blog.excerpt || `${blog.title} — AutoRepublic Blog`
 
   return {
     title: `${blog.title} | AutoRepublic Blog`,
-    description: blog.excerpt || `Read about ${blog.title} on AutoRepublic Blog.`,
-    keywords: [
-      blog.title,
-      blog.category,
-      ...(blog.tags || []),
-      'AutoRepublic',
-      'Auto Republic',
-      'cars in Nigeria',
-      'vehicle blog',
-      'auto blog Nigeria',
-    ].filter(Boolean),
-
-    alternates: {
-      canonical: canonicalUrl,
+    description,
+    keywords: blog.tags || [blog.category, 'car blog', 'AutoRepublic'],
+    authors: [{ name: blog.author || 'AutoRepublic' }],
+    alternates: { canonical: url },
+    openGraph: {
+      title: blog.title,
+      description,
+      url,
+      siteName: 'AutoRepublic',
+      type: 'article',
+      publishedTime: blog.published_at,
+      modifiedTime: blog.updated_at,
+      authors: [blog.author || 'AutoRepublic'],
+      images: blog.cover_image
+        ? [{ url: blog.cover_image, width: 1200, height: 630, alt: blog.title }]
+        : [],
     },
-
+    twitter: {
+      card: 'summary_large_image',
+      title: blog.title,
+      description,
+      images: blog.cover_image ? [blog.cover_image] : [],
+    },
     robots: {
       index: true,
       follow: true,
@@ -62,114 +60,90 @@ export async function generateMetadata(
         follow: true,
         'max-image-preview': 'large',
         'max-snippet': -1,
-        'max-video-preview': -1,
       },
-    },
-
-    openGraph: {
-      type: 'article',
-      locale: 'en_NG',
-      url: canonicalUrl,
-      siteName: 'AutoRepublic',
-      title: blog.title,
-      description: blog.excerpt || `Read about ${blog.title} on AutoRepublic Blog.`,
-      images: blog.cover_image
-        ? [
-            {
-              url: blog.cover_image,
-              width: 1200,
-              height: 630,
-              alt: blog.title,
-            },
-          ]
-        : [],
-      publishedTime: blog.published_at,
-      authors: ['AutoRepublic'],
-      tags: blog.tags || [],
-    },
-
-    twitter: {
-      card: 'summary_large_image',
-      title: blog.title,
-      description: blog.excerpt || `Read about ${blog.title} on AutoRepublic Blog.`,
-      images: blog.cover_image ? [blog.cover_image] : [],
     },
   }
 }
 
-// Generate static paths for all blog posts
-export async function generateStaticParams() {
-  const { data: blogs } = await supabaseServer
-    .from('blogs')
-    .select('slug')
-    .eq('is_published', true)
+export const revalidate = 3600 // ISR
 
-  return (blogs || []).map((blog) => ({
-    slug: blog.slug,
-  }))
-}
-
-// Format date function (now used on the server)
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  })
-}
-
-// Main page component
-export default async function BlogDetailPage({ params }: BlogPageProps) {
-  // Fetch the blog post
-  const { data: blog, error } = await supabaseServer
+export default async function BlogPostPage({ params }: Props) {
+  const { data: blog } = await supabase
     .from('blogs')
     .select('*')
     .eq('slug', params.slug)
     .eq('is_published', true)
     .single()
 
-  // If blog not found, show 404
-  if (error || !blog) {
-    notFound()
+  if (!blog) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <p className="text-white/60">Article not found</p>
+      </div>
+    )
   }
 
-  // Increment view count
-  try {
-    const { data: currentBlog } = await supabaseServer
-      .from('blogs')
-      .select('views')
-      .eq('id', blog.id)
-      .single()
-
-    const currentViews = currentBlog?.views || 0
-    const newViews = currentViews + 1
-
-    await supabaseServer
-      .from('blogs')
-      .update({ views: newViews })
-      .eq('id', blog.id)
-  } catch (err) {
-    console.error('Error incrementing views:', err)
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: blog.title,
+    description: blog.excerpt,
+    image: blog.cover_image ? [blog.cover_image] : [],
+    datePublished: blog.published_at,
+    dateModified: blog.updated_at || blog.published_at,
+    author: {
+      '@type': 'Person',
+      name: blog.author || 'AutoRepublic',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'AutoRepublic',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://autorepublic.ng/logo.png',
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `https://autorepublic.ng/blog/${blog.slug}`,
+    },
+    keywords: (blog.tags || []).join(', '),
   }
 
-  // Fetch related blog posts
-  const { data: relatedPosts } = await supabaseServer
-    .from('blogs')
-    .select('id, title, slug, cover_image, excerpt, published_at, category')
-    .eq('is_published', true)
-    .neq('id', blog.id)
-    .eq('category', blog.category)
-    .order('published_at', { ascending: false })
-    .limit(3)
-
-  // Format the date on the server before passing to client
-  const formattedDate = formatDate(blog.published_at || blog.created_at)
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://autorepublic.ng' },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://autorepublic.ng/blog' },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: blog.title,
+        item: `https://autorepublic.ng/blog/${blog.slug}`,
+      },
+    ],
+  }
 
   return (
-    <BlogContent 
-      blog={blog} 
-      relatedPosts={relatedPosts || []} 
-      formattedDate={formattedDate}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
+      <BlogContent
+        blog={blog}
+        relatedPosts={[]}
+        formattedDate={new Date(blog.published_at).toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        })}
+      />
+    </>
   )
 }
