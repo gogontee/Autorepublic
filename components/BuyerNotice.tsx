@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Shield, AlertTriangle, CheckCircle, X } from 'lucide-react'
 import Link from 'next/link'
 
@@ -9,24 +10,39 @@ interface BuyerNoticeProps {
 }
 
 export default function BuyerNotice({ variant = 'inline', onClose }: BuyerNoticeProps) {
+  const [dismissed, setDismissed] = useState(false)
+
+  const handleDismiss = (e: React.SyntheticEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDismissed(true)
+  }
+
+  if (dismissed) return null
+
   if (variant === 'modal') {
     return (
-      <div className="bg-gradient-to-br from-yellow-500/5 to-orange-500/5 rounded-2xl border border-yellow-500/20 p-6 max-w-md w-full">
-        <div className="flex items-start justify-between mb-4">
+      <div className="bg-gradient-to-br from-yellow-500/5 to-orange-500/5 rounded-2xl border border-yellow-500/20 p-6 max-w-md w-full relative">
+        <div className="flex items-start justify-between mb-4 pr-8">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-yellow-500/20 rounded-xl flex-shrink-0">
               <Shield className="w-5 h-5 text-yellow-400" />
             </div>
             <h3 className="text-sm font-semibold text-white">⚠️ Buyer Safety Notice</h3>
           </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <X className="w-4 h-4 text-white/60" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleDismiss}
+            onTouchEnd={handleDismiss}
+            className="absolute top-3 right-3 z-20 p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 transition-colors"
+            aria-label="Dismiss buyer notice"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <X
+              className="w-4 h-4 text-white/60 pointer-events-none"
+              style={{ pointerEvents: 'none' }}
+            />
+          </button>
         </div>
 
         <div className="space-y-2.5 text-xs text-white/70 leading-relaxed">
@@ -54,10 +70,24 @@ export default function BuyerNotice({ variant = 'inline', onClose }: BuyerNotice
     )
   }
 
-  // Inline variant - Desktop version
   return (
-    <div className="bg-gradient-to-br from-yellow-500/5 to-orange-500/5 rounded-2xl border border-yellow-500/20 p-4 sm:p-5">
-      <div className="flex items-center gap-3 mb-3">
+    <div className="bg-gradient-to-br from-yellow-500/5 to-orange-500/5 rounded-2xl border border-yellow-500/20 p-4 sm:p-5 relative">
+      {/* Mobile-only close button */}
+      <button
+        type="button"
+        onClick={handleDismiss}
+        onTouchEnd={handleDismiss}
+        className="lg:hidden absolute top-2 right-2 z-20 p-2.5 rounded-lg hover:bg-white/10 active:bg-white/20 transition-colors"
+        aria-label="Dismiss buyer notice"
+        style={{ touchAction: 'manipulation' }}
+      >
+        <X
+          className="w-4 h-4 text-white/60 pointer-events-none"
+          style={{ pointerEvents: 'none' }}
+        />
+      </button>
+
+      <div className="flex items-center gap-3 mb-3 pr-10 lg:pr-0">
         <div className="p-1.5 bg-yellow-500/20 rounded-lg flex-shrink-0">
           <Shield className="w-4 h-4 text-yellow-400" />
         </div>

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Tag } from 'lucide-react'
+import { Tag, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 
@@ -450,8 +450,18 @@ export default function VehicleScroll({
   if (loading) {
     return (
       <div className={`py-6 ${className}`}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white">{title}</h2>
+        <div className="flex items-center justify-between gap-3 mb-4 px-4">
+          <h2 className="text-base sm:text-xl font-bold text-white truncate">
+            {title}
+          </h2>
+          <Link
+            href="/vehicles"
+            className="flex items-center gap-1 text-[10px] sm:text-xs font-medium text-red-400 hover:text-red-300 transition-colors whitespace-nowrap flex-shrink-0"
+          >
+            <span className="hidden xs:inline">All Available Cars</span>
+            <span className="xs:hidden">All Cars</span>
+            <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          </Link>
         </div>
         <div className="flex items-center justify-center py-12">
           <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
@@ -464,8 +474,18 @@ export default function VehicleScroll({
   if (error || vehicles.length === 0) {
     return (
       <div className={`py-6 ${className}`}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white">{title}</h2>
+        <div className="flex items-center justify-between gap-3 mb-4 px-4">
+          <h2 className="text-base sm:text-xl font-bold text-white truncate">
+            {title}
+          </h2>
+          <Link
+            href="/vehicles"
+            className="flex items-center gap-1 text-[10px] sm:text-xs font-medium text-red-400 hover:text-red-300 transition-colors whitespace-nowrap flex-shrink-0"
+          >
+            <span className="hidden xs:inline">All Available Cars</span>
+            <span className="xs:hidden">All Cars</span>
+            <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          </Link>
         </div>
         <div className="text-center py-8 text-white/40">
           {error || 'No vehicles available'}
@@ -482,9 +502,19 @@ export default function VehicleScroll({
 
   return (
     <div className={`py-4 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3 px-4">
-        <h2 className="text-lg sm:text-xl font-bold text-white">{title}</h2>
+      {/* Header — title left, "All Available Cars" right on same line */}
+      <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 px-4">
+        <h2 className="text-base sm:text-xl font-bold text-white truncate min-w-0">
+          {title}
+        </h2>
+        <Link
+          href="/vehicles"
+          className="flex items-center gap-1 text-[10px] sm:text-xs font-medium text-red-400 hover:text-red-300 transition-colors whitespace-nowrap flex-shrink-0 group"
+        >
+          <span className="hidden xs:inline">All Available Cars</span>
+          <span className="xs:hidden">All Cars</span>
+          <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
 
       {/* Top Row */}
@@ -571,6 +601,3 @@ export default function VehicleScroll({
     </div>
   )
 }
-
-// Missing imports
-import { ChevronLeft, ChevronRight } from 'lucide-react'

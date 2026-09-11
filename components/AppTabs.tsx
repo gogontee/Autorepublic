@@ -27,7 +27,7 @@ interface Tab {
 const tabs: Tab[] = [
   { 
     id: 'main-market', 
-    label: 'Main Market', 
+    label: 'All Vehicles', 
     href: '/vehicles', 
     icon: LayoutGrid,
     description: 'Browse all vehicles',
@@ -63,7 +63,7 @@ const tabs: Tab[] = [
   },
   { 
     id: 'collections', 
-    label: 'Republic Collections', 
+    label: 'Our Collections', 
     href: '/collections', 
     icon: Sparkles,
     description: 'Curated exceptional vehicles',
@@ -76,7 +76,7 @@ const tabs: Tab[] = [
     href: '/distress', 
     icon: Gavel,
     description: 'Auction vehicles at special prices',
-    action: 'Bid now',
+    action: '',
     color: 'from-red-500/20 to-red-600/10'
   },
 ]
@@ -325,10 +325,12 @@ export default function AppTabs({ className = '' }: AppTabsProps) {
                 <p className={`text-[9px] sm:text-[10px] text-center leading-tight ${getDescriptionColor(tab, isActive, isMainMarket)}`}>
                   {tab.description}
                 </p>
-                {/* Action text */}
-                <p className={`text-[8px] sm:text-[9px] text-center mt-0.5 font-medium ${getActionColor(tab, isActive, isMainMarket)}`}>
-                  {tab.action}
-                </p>
+                {/* Action text - only render if action is non-empty */}
+                {tab.action && (
+                  <p className={`text-[8px] sm:text-[9px] text-center mt-0.5 font-medium ${getActionColor(tab, isActive, isMainMarket)}`}>
+                    {tab.action}
+                  </p>
+                )}
               </div>
             </motion.div>
           )

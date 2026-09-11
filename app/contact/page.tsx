@@ -143,8 +143,8 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <p className="text-[10px] text-white/40">Phone</p>
-                      <a href="tel:+2348000000000" className="text-xs text-white/80 hover:text-white transition-colors">
-                        +234 800 000 0000
+                      <a href="tel:+2349161888244" className="text-xs text-white/80 hover:text-white transition-colors">
+                        +234 9161888244
                       </a>
                     </div>
                   </div>
@@ -168,7 +168,7 @@ export default function ContactPage() {
                     <div>
                       <p className="text-[10px] text-white/40">Support Hours</p>
                       <p className="text-xs text-white/60">
-                        Mon - Fri: 8:00 AM - 6:00 PM (WAT)
+                        Mon - Sat: 8:00 AM - 6:00 PM (WAT)
                       </p>
                     </div>
                   </div>
