@@ -4,6 +4,7 @@ import './globals.css'
 import { AuthProvider } from '@/providers/AuthProvider'
 import GlobalRouteLoader from '@/components/GlobalRouteLoader'
 import StructuredData from '@/components/StructuredData'
+import InstallPrompt from '@/components/InstallPrompt'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -157,7 +158,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: light)', color: '#0a0a0a' },
     { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
   ],
   colorScheme: 'dark light',
@@ -192,6 +193,8 @@ export default function RootLayout({
         <AuthProvider>
           <GlobalRouteLoader>{children}</GlobalRouteLoader>
         </AuthProvider>
+
+        <InstallPrompt />
       </body>
     </html>
   )

@@ -327,36 +327,69 @@ export default function DashboardPage() {
             )}
           </button>
           
-          {/* Onboarding Indicator - Floating arrow pointing to menu button */}
-          <AnimatePresence>
-            {showOnboarding && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 10 }}
-                transition={{ 
-                  duration: 0.5,
-                  repeat: Infinity,
-                  repeatType: "reverse",
-                  repeatDelay: 1
-                }}
-                className="absolute -right-2 -top-12 whitespace-nowrap flex items-center gap-2 bg-gradient-to-r from-red-500/90 to-red-600/90 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg shadow-red-500/30 border border-red-400/30"
-              >
-                <Sparkles className="w-3 h-3 animate-pulse" />
-                <span>Tap here to navigate</span>
-                <Pointer className="w-3 h-3 ml-1 animate-bounce" />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleDismissOnboarding()
-                  }}
-                  className="ml-1 p-0.5 hover:bg-white/10 rounded-full transition-colors"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Onboarding Indicator - Floating pointer on the menu button */}
+<AnimatePresence>
+  {showOnboarding && (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.3 }}
+      className="absolute inset-0 pointer-events-none flex items-center justify-center"
+    >
+      {/* Pulsing ring behind the button to draw attention */}
+      <motion.div
+        animate={{
+          scale: [1, 1.25, 1],
+          opacity: [0.5, 0, 0.5],
+        }}
+        transition={{
+          duration: 1.8,
+          repeat: Infinity,
+          ease: 'easeOut',
+        }}
+        className="absolute inset-0 rounded-xl border-2 border-red-500 pointer-events-none"
+      />
+
+      {/* Arrow pointing down toward the button, sitting right on top of it */}
+      <motion.div
+        animate={{ y: [0, -4, 0] }}
+        transition={{
+          duration: 1.2,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+        className="absolute -right-6 top-1/2 -translate-y-1/2"
+      >
+        <Pointer className="w-4 h-4 text-red-500 -rotate-90 drop-shadow" />
+      </motion.div>
+
+      {/* Small caption to the right of the arrow */}
+      <motion.div
+        initial={{ opacity: 0, x: -4 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.2 }}
+        className="absolute left-full ml-8 top-1/2 -translate-y-1/2 pointer-events-auto flex items-start gap-1.5"
+      >
+        <div className="bg-black/90 backdrop-blur-sm border border-white/10 rounded-md px-2 py-1 shadow-lg">
+          <p className="text-[10px] leading-tight text-white/80 whitespace-nowrap">
+            Click here to open side menu
+          </p>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handleDismissOnboarding()
+          }}
+          className="p-0.5 bg-black/60 hover:bg-black/80 border border-white/10 rounded-full text-white/50 hover:text-white/80 transition-colors flex-shrink-0 mt-0.5"
+          aria-label="Dismiss tip"
+        >
+          <X className="w-2.5 h-2.5" />
+        </button>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
         </div>
 
         {/* Sidebar - Desktop */}
