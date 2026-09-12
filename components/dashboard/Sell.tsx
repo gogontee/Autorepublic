@@ -23,7 +23,11 @@ import {
   Home,
   Check,
   Hammer,
-  AlertTriangle
+  AlertTriangle,
+  UserCircle,
+  MessageCircle,
+  Shield,
+  ArrowRight
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import dynamic from 'next/dynamic'
@@ -124,6 +128,9 @@ const quillFormats = [
   'color', 'background'
 ]
 
+// LocalStorage key so the popup only shows once per session per user
+const PROFILE_GATE_KEY_PREFIX = 'sell_profile_gate_dismissed_'
+
 export default function Sell({ 
   userData, 
   savedFormData, 
@@ -161,6 +168,10 @@ export default function Sell({
   const [isLoadingCities, setIsLoadingCities] = useState(false)
   const [stateSearch, setStateSearch] = useState('')
   const [citySearch, setCitySearch] = useState('')
+
+  // Profile completion gate
+  const [showProfileGate, setShowProfileGate] = useState(false)
+  const [liveProfile, setLiveProfile] = useState<any>(profile || null)
   
   const brandInputRef = useRef<HTMLInputElement>(null)
   const modelInputRef = useRef<HTMLInputElement>(null)
@@ -228,6 +239,63 @@ export default function Sell({
     }
     return []
   })
+
+  // ==========================================
+  // PROFILE COMPLETION GATE
+  // ==========================================
+  // Compute missing fields from the live profile (which may be fresher than the prop)
+  const profileMissing = {
+    avatar: !liveProfile?.avatar_url,
+    phone: !liveProfile?.phone,
+    verified: liveProfile?.is_verified !== true,
+  }
+  const hasMissingProfileFields = profileMissing.avatar || profileMissing.phone || profileMissing.verified
+
+  // Fetch the freshest profile on mount so we don't show the gate unnecessarily
+  useEffect(() => {
+    if (!user?.id) return
+    const fetchProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('avatar_url, phone, is_verified')
+          .eq('user_id', user.id)
+          .single()
+        if (!error && data) {
+          setLiveProfile((prev: any) => ({ ...(prev || {}), ...data }))
+        }
+      } catch (err) {
+        console.error('Error fetching profile for gate:', err)
+      }
+    }
+    fetchProfile()
+  }, [user?.id])
+
+  // Show the gate when the profile is incomplete (unless dismissed this session)
+  useEffect(() => {
+    if (!user?.id) return
+    if (!hasMissingProfileFields) return
+    if (typeof window === 'undefined') return
+
+    const key = `${PROFILE_GATE_KEY_PREFIX}${user.id}`
+    if (sessionStorage.getItem(key) === 'true') return
+
+    // Slight delay so the page renders first
+    const timer = setTimeout(() => setShowProfileGate(true), 500)
+    return () => clearTimeout(timer)
+  }, [user?.id, hasMissingProfileFields])
+
+  const dismissProfileGate = () => {
+    setShowProfileGate(false)
+    if (typeof window !== 'undefined' && user?.id) {
+      sessionStorage.setItem(`${PROFILE_GATE_KEY_PREFIX}${user.id}`, 'true')
+    }
+  }
+
+  const goToSettings = () => {
+    if (!user?.id) return
+    router.push(`/dashboard/${user.id}?tab=settings`)
+  }
 
   // Save form data whenever it changes
   useEffect(() => {
@@ -711,9 +779,18 @@ export default function Sell({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!user) {
       setError('Please log in to list a vehicle')
+      return
+    }
+
+    // ==========================================
+    // HARD GATE: block submission if profile is incomplete
+    // ==========================================
+    if (hasMissingProfileFields) {
+      setShowProfileGate(true)
+      setError('Please complete your profile before listing a vehicle')
       return
     }
 
@@ -814,7 +891,6 @@ export default function Sell({
       setSuccess(true)
       setShowSuccessModal(true)
       
-      // Clear saved form data after successful submission
       if (onFormSubmit) {
         onFormSubmit()
       }
@@ -846,6 +922,99 @@ export default function Sell({
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* ==========================================
+          PROFILE COMPLETION GATE POPUP
+          ========================================== */}
+      {showProfileGate && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl p-6 sm:p-8 max-w-md w-full border border-amber-500/20 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white">Almost there!</h2>
+                  <p className="text-[11px] text-white/40">Complete your profile to start selling</p>
+                </div>
+              </div>
+              <button
+                onClick={dismissProfileGate}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4 text-white/50" />
+              </button>
+            </div>
+
+            <p className="text-xs text-white/60 leading-relaxed mb-4">
+              Before you can list a vehicle, we need a few things to keep our marketplace safe and trusted:
+            </p>
+
+            <div className="space-y-2.5 mb-5">
+              {/* Avatar requirement */}
+              {profileMissing.avatar && (
+                <div className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="w-8 h-8 rounded-lg bg-red-500/15 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                    <UserCircle className="w-4 h-4 text-red-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">Add a profile photo</p>
+                    <p className="text-[11px] text-white/40 mt-0.5">
+                      Buyers trust sellers more when they can see who they're dealing with.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Phone requirement */}
+              {profileMissing.phone && (
+                <div className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                    <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">Add an active WhatsApp line</p>
+                    <p className="text-[11px] text-white/40 mt-0.5">
+                      Buyers reach out via WhatsApp. Use a number that's active so you don't miss inquiries.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Verification requirement */}
+              {profileMissing.verified && (
+                <div className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">Verify your account</p>
+                    <p className="text-[11px] text-white/40 mt-0.5">
+                      Tap the <span className="text-amber-400 font-medium">Verify Me</span> button in Profile Settings to confirm your identity.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={goToSettings}
+              className="w-full py-3 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-medium text-white transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 mb-2"
+            >
+              Click here to add
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={dismissProfileGate}
+              className="w-full py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-medium text-white/50 transition-colors"
+            >
+              I'll do this later
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
@@ -896,11 +1065,9 @@ export default function Sell({
                   onClick={() => {
                     setShowSuccessModal(false)
                     setSuccess(false)
-                    // Call onSuccessAction if provided
                     if (onSuccessAction) {
                       onSuccessAction()
                     }
-                    // Navigate to dashboard my-listings page
                     router.push('/dashboard/my-listing')
                   }}
                   className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-medium text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -926,6 +1093,33 @@ export default function Sell({
         <h1 className="text-2xl font-bold text-white">Sell Your Car</h1>
         <p className="text-sm text-white/40 mt-1">List your vehicle and reach thousands of buyers</p>
       </div>
+
+      {/* Persistent banner if profile is incomplete */}
+      {hasMissingProfileFields && (
+        <div className="mb-4 p-3 sm:p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+          <div className="flex items-start gap-3">
+            <Shield className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-400">
+                Complete your profile to start selling
+              </p>
+              <p className="text-xs text-amber-300/70 mt-0.5">
+                {profileMissing.avatar && 'Add a profile photo'}
+                {profileMissing.avatar && (profileMissing.phone || profileMissing.verified) && ' • '}
+                {profileMissing.phone && 'Add an active WhatsApp line'}
+                {profileMissing.phone && profileMissing.verified && ' • '}
+                {profileMissing.verified && 'Verify your account'}
+              </p>
+            </div>
+            <button
+              onClick={goToSettings}
+              className="text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap"
+            >
+              Fix now →
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
@@ -1715,13 +1909,18 @@ export default function Sell({
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || hasMissingProfileFields}
           className="w-full py-3 bg-red-500 hover:bg-red-600 rounded-xl font-medium text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-red-500/25"
         >
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
               Listing Vehicle...
+            </>
+          ) : hasMissingProfileFields ? (
+            <>
+              <Shield className="w-4 h-4" />
+              Complete Profile to List
             </>
           ) : (
             'List Your Vehicle'
