@@ -16,7 +16,8 @@ import {
   AlertCircle,
   Clock,
   ArrowRight,
-  Flag
+  Flag,
+  ChevronDown
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -74,6 +75,7 @@ export default function NotificationModal({ isOpen, onClose, userId }: Notificat
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isMarkingAll, setIsMarkingAll] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
   const channelRef = useRef<any>(null)
 
@@ -104,6 +106,13 @@ export default function NotificationModal({ isOpen, onClose, userId }: Notificat
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isOpen, userId, onClose])
+
+  // Reset expanded state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setExpandedId(null)
+    }
+  }, [isOpen])
 
   // Handle mark as read
   const handleMarkAsRead = async (notificationId: string) => {
@@ -140,17 +149,25 @@ export default function NotificationModal({ isOpen, onClose, userId }: Notificat
       if (removed && !removed.is_read) {
         setUnreadCount(prev => Math.max(0, prev - 1))
       }
+      if (expandedId === notificationId) {
+        setExpandedId(null)
+      }
     }
   }
 
-  // Handle notification click
+  // Handle notification click — expands in place instead of navigating
   const handleNotificationClick = (notification: ExtendedNotification) => {
+    // Auto-mark as read on first click
     if (!notification.is_read) {
       handleMarkAsRead(notification.id)
     }
-    if (notification.link) {
-      window.location.href = notification.link
-    }
+    // Toggle expansion
+    setExpandedId(prev => (prev === notification.id ? null : notification.id))
+  }
+
+  // Handle "go to page" — actual navigation
+  const handleNavigate = (link: string) => {
+    window.location.href = link
   }
 
   // Format time
@@ -168,6 +185,18 @@ export default function NotificationModal({ isOpen, onClose, userId }: Notificat
     if (hours < 24) return `${hours}h ago`
     if (days < 7) return `${days}d ago`
     return date.toLocaleDateString()
+  }
+
+  // Format full date for expanded view
+  const formatFullDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
   }
 
   if (!isOpen) return null
@@ -231,6 +260,7 @@ export default function NotificationModal({ isOpen, onClose, userId }: Notificat
                 const Icon = typeIcons[notification.type] || Info
                 const colorClass = typeColors[notification.type] || typeColors.system
                 const label = typeLabels[notification.type] || 'System'
+                const isExpanded = expandedId === notification.id
 
                 return (
                   <motion.div
@@ -239,71 +269,158 @@ export default function NotificationModal({ isOpen, onClose, userId }: Notificat
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.2 }}
-                    className={`group relative rounded-xl p-3 mb-1.5 cursor-pointer transition-all ${
+                    className={`group relative rounded-xl mb-1.5 transition-all overflow-hidden ${
                       notification.is_read
                         ? 'hover:bg-white/5'
                         : 'bg-red-500/5 hover:bg-red-500/10 border border-red-500/10'
-                    }`}
-                    onClick={() => handleNotificationClick(notification)}
+                    } ${isExpanded ? 'bg-white/5 ring-1 ring-white/10' : ''}`}
                   >
-                    <div className="flex gap-3">
-                      {/* Icon */}
-                      <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${colorClass}`}>
-                        <Icon className="w-3.5 h-3.5" />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className={`text-[10px] font-medium truncate ${notification.is_read ? 'text-white/60' : 'text-white'}`}>
-                              {notification.title}
-                            </p>
-                            <p className="text-[9px] text-white/40 line-clamp-2 mt-0.5">
-                              {notification.message}
-                            </p>
-                            {/* ❌ REMOVED: Bulk stats display - users should not see recipient counts */}
-                          </div>
-                          <span className="text-[8px] text-white/20 flex-shrink-0">
-                            {formatTime(notification.created_at)}
-                          </span>
+                    {/* Compact row — clickable to toggle expansion */}
+                    <div
+                      className="p-3 cursor-pointer"
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex gap-3">
+                        {/* Icon */}
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${colorClass}`}>
+                          <Icon className="w-3.5 h-3.5" />
                         </div>
 
-                        {/* Footer */}
-                        <div className="flex items-center justify-between mt-1.5">
-                          <span className="text-[7px] text-white/20">
-                            {label}
-                          </span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {!notification.is_read && (
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className={`text-[10px] font-medium truncate ${notification.is_read ? 'text-white/60' : 'text-white'}`}>
+                                {notification.title}
+                              </p>
+                              <p className={`text-[9px] text-white/40 mt-0.5 ${isExpanded ? '' : 'line-clamp-2'}`}>
+                                {notification.message}
+                              </p>
+                            </div>
+                            <span className="text-[8px] text-white/20 flex-shrink-0">
+                              {formatTime(notification.created_at)}
+                            </span>
+                          </div>
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between mt-1.5">
+                            <span className="text-[7px] text-white/20">
+                              {label}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              {/* Expand/collapse chevron */}
+                              <motion.div
+                                animate={{ rotate: isExpanded ? 180 : 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="text-white/30"
+                              >
+                                <ChevronDown className="w-3 h-3" />
+                              </motion.div>
+
+                              {/* Hover-only action buttons */}
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {!notification.is_read && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleMarkAsRead(notification.id)
+                                    }}
+                                    className="p-0.5 hover:bg-white/10 rounded transition-colors text-white/30 hover:text-white/60"
+                                  >
+                                    <Check className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDelete(notification.id)
+                                  }}
+                                  className="p-0.5 hover:bg-red-500/10 rounded transition-colors text-white/20 hover:text-red-400"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Unread indicator */}
+                      {!notification.is_read && (
+                        <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-red-500" />
+                      )}
+                    </div>
+
+                    {/* Expanded details */}
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-3 pb-3 pt-1 border-t border-white/5">
+                            {/* Full message */}
+                            <div className="mb-2.5">
+                              <p className="text-[8px] uppercase tracking-wider text-white/30 mb-1">
+                                Message
+                              </p>
+                              <p className="text-[10px] text-white/70 leading-relaxed whitespace-pre-wrap">
+                                {notification.message}
+                              </p>
+                            </div>
+
+                            {/* Metadata row */}
+                            <div className="flex items-center gap-3 mb-3 text-[8px] text-white/30">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5" />
+                                {formatFullDate(notification.created_at)}
+                              </span>
+                              <span className="px-1.5 py-0.5 bg-white/5 rounded-full text-white/40">
+                                {label}
+                              </span>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-2">
+                              {notification.link && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleNavigate(notification.link!)
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-[10px] font-medium text-white transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-red-500/25"
+                                >
+                                  Go to Page
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  handleMarkAsRead(notification.id)
+                                  setExpandedId(null)
                                 }}
-                                className="p-0.5 hover:bg-white/10 rounded transition-colors text-white/30 hover:text-white/60"
+                                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-medium text-white/60 hover:text-white/80 transition-colors"
                               >
-                                <Check className="w-2.5 h-2.5" />
+                                Close
                               </button>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDelete(notification.id)
-                              }}
-                              className="p-0.5 hover:bg-red-500/10 rounded transition-colors text-white/20 hover:text-red-400"
-                            >
-                              <Trash2 className="w-2.5 h-2.5" />
-                            </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDelete(notification.id)
+                                }}
+                                className="p-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-red-400 transition-colors ml-auto"
+                                title="Delete notification"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Unread indicator */}
-                    {!notification.is_read && (
-                      <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-red-500" />
-                    )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 )
               })}
