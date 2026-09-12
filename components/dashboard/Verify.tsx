@@ -111,7 +111,7 @@ export default function Verify({ userData, isOpen = true, onClose, onVerified }:
           ? 'Camera access was denied. Please allow camera access in your browser settings.'
           : err?.name === 'NotFoundError'
           ? 'No camera found on this device.'
-          : 'Could not start the camera. Please try uploading a photo instead.'
+          : 'Could not start the camera. Please try again.'
       )
       setCameraActive(false)
     }
@@ -174,19 +174,6 @@ export default function Verify({ userData, isOpen = true, onClose, onVerified }:
     setSelfieFile(null)
     setSelfiePreview(null)
     startCamera()
-  }
-
-  // Fallback: user uploads selfie from gallery (in case camera fails)
-  const handleSelfieUploadFallback = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be less than 5MB')
-      return
-    }
-    setSelfieFile(file)
-    setSelfiePreview(URL.createObjectURL(file))
-    stopCamera()
   }
 
   // ==========================================
@@ -462,25 +449,13 @@ export default function Verify({ userData, isOpen = true, onClose, onVerified }:
 
                 {/* Actions */}
                 {!selfiePreview && !cameraActive && (
-                  <div className="space-y-2">
-                    <button
-                      onClick={startCamera}
-                      className="w-full py-2.5 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-medium text-white transition-all flex items-center justify-center gap-2"
-                    >
-                      <Camera className="w-4 h-4" />
-                      Open Camera
-                    </button>
-                    <label className="w-full py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-medium text-white/60 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer">
-                      <Upload className="w-3.5 h-3.5" />
-                      Upload from gallery instead
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleSelfieUploadFallback}
-                      />
-                    </label>
-                  </div>
+                  <button
+                    onClick={startCamera}
+                    className="w-full py-2.5 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-medium text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Open Camera
+                  </button>
                 )}
 
                 {!selfiePreview && cameraActive && (
