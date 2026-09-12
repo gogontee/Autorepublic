@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default function ConfirmPage() {
+// Inner component that actually reads search params
+function ConfirmContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -18,7 +19,6 @@ export default function ConfirmPage() {
       const code = searchParams?.get('code')
       const errorDescription = searchParams?.get('error_description')
 
-      // If Supabase returned an error
       if (errorDescription) {
         setStatus('error')
         setMessage(errorDescription)
@@ -43,7 +43,6 @@ export default function ConfirmPage() {
         setStatus('success')
         setMessage('Your email has been confirmed!')
 
-        // Redirect to dashboard after a short pause
         setTimeout(() => {
           router.push('/dashboard')
         }, 2000)
@@ -105,5 +104,33 @@ export default function ConfirmPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Default export wraps the inner component in Suspense
+export default function ConfirmPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center px-4">
+          <div className="w-full max-w-md text-center">
+            <div className="flex items-center justify-center mb-6">
+              <Image
+                src="/autorepublic.png"
+                alt="AutoRepublic"
+                width={48}
+                height={48}
+                className="w-12 h-12 object-contain"
+              />
+            </div>
+            <Loader2 className="w-12 h-12 text-red-500 animate-spin mx-auto mb-4" />
+            <h1 className="text-xl font-bold text-white mb-2">Confirming your email</h1>
+            <p className="text-sm text-white/40">Verifying your email...</p>
+          </div>
+        </div>
+      }
+    >
+      <ConfirmContent />
+    </Suspense>
   )
 }
