@@ -5,6 +5,7 @@ import LayoutWrapper from '@/components/LayoutWrapper'
 import HeroSection from '@/components/HeroSection'
 import VehicleScroll from '@/components/VehicleScroll'
 import AppTabs from '@/components/AppTabs'
+import OnboardingPopups from '@/components/OnboardingPopups'
 import { supabase } from '@/lib/supabase/client'
 import { Loader2, AlertCircle } from 'lucide-react'
 
@@ -123,6 +124,9 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AppTabs className="mb-4" />
       </div>
+
+      {/* Onboarding Popups - render last so the fixed overlay sits above everything */}
+      <OnboardingPopups />
     </LayoutWrapper>
   )
 }
