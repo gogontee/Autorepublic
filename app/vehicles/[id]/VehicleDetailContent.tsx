@@ -43,11 +43,12 @@ import {
 } from 'lucide-react'
 import Header from '@/components/Header'
 import BottomNav from '@/components/BottomNav'
-import BuyerNotice from '@/components/BuyerNotice'
 import CarCard from '@/components/CarCard'
 import Ads from '@/components/Ads'
 import VehicleRating from '@/components/VehicleRating'
 import RateVehicleButton from '@/components/RateVehicleButton'
+import ContactSellerModal from '@/components/ContactSellerModal'
+import BuyerNotice from '@/components/BuyerNotice'
 import { supabase } from '@/lib/supabase/client'
 
 interface Vehicle {
@@ -1026,7 +1027,7 @@ export default function VehicleDetailContent({
                 </div>
               )}
 
-              {/* Buyer Notice - Desktop */}
+                            {/* Buyer Notice - Desktop */}
               <div className="hidden lg:block mt-4">
                 <BuyerNotice variant="inline" />
               </div>
@@ -1463,99 +1464,13 @@ export default function VehicleDetailContent({
         </div>
       </main>
 
-      {/* Contact Modal */}
-      {showContactModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl p-3 sm:p-4 lg:p-6 max-w-4xl w-full border border-white/10 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h2 className="text-sm sm:text-base lg:text-xl font-bold text-white">Contact Seller</h2>
-              <button
-                onClick={() => setShowContactModal(false)}
-                className="p-1 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4 text-white/60" />
-              </button>
-            </div>
-
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-              <div className="lg:w-1/2">
-                <div className="text-sm text-white/60 mb-3 hidden lg:block">
-                  <p className="font-medium text-white/80">Before you proceed:</p>
-                </div>
-                <BuyerNotice variant="modal" onClose={() => {}} />
-              </div>
-
-              <div className="lg:w-1/2">
-                <div className="text-center mb-4">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-3">
-                    <Phone className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-red-500" />
-                  </div>
-                  <p className="text-xs sm:text-sm text-white/60">
-                    Connect with the seller directly
-                  </p>
-                </div>
-
-                <div className="space-y-2 sm:space-y-3">
-                  <a
-                    href="tel:09161888244"
-                    className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5 hover:border-white/10"
-                  >
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                      <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs sm:text-sm lg:text-base font-medium text-white">Call Seller</p>
-                      <p className="text-[8px] sm:text-xs text-white/40">Direct call connection</p>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/30" />
-                  </a>
-
-                  <a
-                    href="https://wa.me/2349161888244"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5 hover:border-white/10"
-                  >
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                      <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs sm:text-sm lg:text-base font-medium text-white">WhatsApp</p>
-                      <p className="text-[8px] sm:text-xs text-white/40">Chat instantly</p>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/30" />
-                  </a>
-
-                  <a
-                    href="mailto:info@autorepublic.com"
-                    className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5 hover:border-white/10"
-                  >
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                      <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs sm:text-sm lg:text-base font-medium text-white">Email</p>
-                      <p className="text-[8px] sm:text-xs text-white/40">Send a message</p>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/30" />
-                  </a>
-                </div>
-
-                <div className="mt-4 p-2.5 sm:p-3 bg-white/5 rounded-xl border border-white/5">
-                  <p className="text-[10px] sm:text-xs text-white/30 text-center">
-                    Our team is available Monday - Friday, 9AM - 6PM
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile Buyer Notice */}
-            <div className="lg:hidden mt-6 pt-6 border-t border-white/10">
-              <BuyerNotice variant="modal" onClose={() => {}} />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Contact Seller Modal (extracted component) */}
+      <ContactSellerModal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        vehicleTitle={vehicle?.title}
+        vehicleId={vehicle?.id}
+      />
 
       {/* Mark as Unavailable Modal */}
       {showUnavailableModal && (
