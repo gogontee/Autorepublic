@@ -1,7 +1,8 @@
 // components/admin/Listing.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Search,
   Filter,
@@ -86,17 +87,33 @@ interface UserProfile {
 type FilterType = 'all' | 'active' | 'pending' | 'sold' | 'featured' | 'luxury' | 'unavailable' | 'removed'
 
 // ==========================================
-// Status options admins can assign
+// The only values that exist in vehicles.status
 // ==========================================
 const STATUS_OPTIONS = [
-  { value: 'active', label: 'Active', color: 'text-green-400 bg-green-500/20 border-green-500/30' },
-  { value: 'pending', label: 'Pending', color: 'text-orange-400 bg-orange-500/20 border-orange-500/30' },
-  { value: 'sold', label: 'Sold', color: 'text-purple-400 bg-purple-500/20 border-purple-500/30' },
-  { value: 'draft', label: 'Draft', color: 'text-gray-400 bg-gray-500/20 border-gray-500/30' },
-  { value: 'archived', label: 'Archived', color: 'text-white/40 bg-white/5 border-white/10' },
+  { value: 'active', label: 'Active', dot: 'bg-green-400' },
+  { value: 'pending', label: 'Pending', dot: 'bg-orange-400' },
+  { value: 'draft', label: 'Draft', dot: 'bg-gray-400' },
+  { value: 'archive', label: 'Archive', dot: 'bg-red-400' },
 ] as const
 
 type StatusValue = (typeof STATUS_OPTIONS)[number]['value']
+
+// ==========================================
+// Treat any missing/empty status as 'pending'
+// ==========================================
+const normalizeStatus = (status: string | null | undefined): StatusValue => {
+  if (!status) return 'pending'
+  const lower = status.toLowerCase()
+  if (
+    lower === 'active' ||
+    lower === 'pending' ||
+    lower === 'draft' ||
+    lower === 'archive'
+  ) {
+    return lower as StatusValue
+  }
+  return 'pending'
+}
 
 export default function ListingManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -107,8 +124,6 @@ export default function ListingManagement() {
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  // Tracks which vehicle's status dropdown is currently open
-  const [openStatusMenu, setOpenStatusMenu] = useState<string | null>(null)
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -118,7 +133,14 @@ export default function ListingManagement() {
     luxury: 0
   })
 
-  // Fetch vehicles and users
+  // ==========================================
+  // Portal-based status menu state
+  // ==========================================
+  const [openStatusVehicleId, setOpenStatusVehicleId] = useState<string | null>(null)
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
@@ -166,17 +188,79 @@ export default function ListingManagement() {
     fetchData()
   }, [])
 
-  // Close status dropdown when clicking outside
+  // ==========================================
+  // Close menu on outside click, scroll, or resize
+  // ==========================================
   useEffect(() => {
-    if (!openStatusMenu) return
-    const handleClick = () => setOpenStatusMenu(null)
-    document.addEventListener('click', handleClick)
-    return () => document.removeEventListener('click', handleClick)
-  }, [openStatusMenu])
+    if (!openStatusVehicleId) return
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (menuRef.current && menuRef.current.contains(target)) return
+      const trigger = buttonRefs.current[openStatusVehicleId]
+      if (trigger && trigger.contains(target)) return
+      setOpenStatusVehicleId(null)
+      setMenuPosition(null)
+    }
+
+    const handleScrollOrResize = () => {
+      // Recompute position on scroll so the menu follows its button
+      const btn = buttonRefs.current[openStatusVehicleId]
+      if (!btn) {
+        setOpenStatusVehicleId(null)
+        setMenuPosition(null)
+        return
+      }
+      const rect = btn.getBoundingClientRect()
+      const menuWidth = 160
+      const menuHeight = 4 * 36 + 8 // approx 4 items
+
+      // Position below the button by default
+      let top = rect.bottom + 6
+      let left = rect.right - menuWidth
+
+      // Flip up if not enough space below
+      if (top + menuHeight > window.innerHeight) {
+        top = rect.top - menuHeight - 6
+      }
+
+      // Keep inside viewport horizontally
+      if (left < 8) left = 8
+      if (left + menuWidth > window.innerWidth - 8) {
+        left = window.innerWidth - menuWidth - 8
+      }
+
+      setMenuPosition({ top, left })
+    }
+
+    document.addEventListener('mousedown', handleClick)
+    window.addEventListener('scroll', handleScrollOrResize, true)
+    window.addEventListener('resize', handleScrollOrResize)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
+    }
+  }, [openStatusVehicleId])
 
   const calculateStats = (vehiclesData: Vehicle[]) => {
-    const active = vehiclesData.filter(v => v.status === 'active' && !v.sold && !v.unavailable && !v.Removed).length
-    const pending = vehiclesData.filter(v => v.status === 'pending').length
+    const active = vehiclesData.filter(
+      v =>
+        normalizeStatus(v.status) === 'active' &&
+        !v.sold &&
+        !v.unavailable &&
+        !v.Removed
+    ).length
+
+    const pending = vehiclesData.filter(
+      v =>
+        normalizeStatus(v.status) === 'pending' &&
+        !v.sold &&
+        !v.unavailable &&
+        !v.Removed
+    ).length
+
     const sold = vehiclesData.filter(v => v.sold === true).length
     const featured = vehiclesData.filter(v => v.featured === true).length
     const luxury = vehiclesData.filter(v => v.luxury === true).length
@@ -191,6 +275,13 @@ export default function ListingManagement() {
     })
   }
 
+  // ==========================================
+  // Badge shown on the row — priorities:
+  //   1. Removed (hard flag)
+  //   2. sold === true  (overrides status)
+  //   3. unavailable
+  //   4. status value (null → pending)
+  // ==========================================
   const getVehicleStatus = (vehicle: Vehicle) => {
     if (vehicle.Removed) {
       return { label: 'Removed', color: 'text-red-400 bg-red-500/20', icon: XCircle }
@@ -201,22 +292,21 @@ export default function ListingManagement() {
     if (vehicle.unavailable) {
       return { label: 'Unavailable', color: 'text-gray-400 bg-gray-500/20', icon: XCircle }
     }
-    if (vehicle.status === 'pending') {
-      return { label: 'Pending', color: 'text-orange-400 bg-orange-500/20', icon: AlertCircle }
+
+    switch (normalizeStatus(vehicle.status)) {
+      case 'active':
+        return { label: 'Active', color: 'text-green-400 bg-green-500/20', icon: CheckCircle }
+      case 'pending':
+        return { label: 'Pending', color: 'text-orange-400 bg-orange-500/20', icon: AlertCircle }
+      case 'draft':
+        return { label: 'Draft', color: 'text-gray-400 bg-gray-500/20', icon: AlertCircle }
+      case 'archive':
+        return { label: 'Archived', color: 'text-red-400 bg-red-500/20', icon: XCircle }
+      default:
+        return { label: 'Pending', color: 'text-orange-400 bg-orange-500/20', icon: AlertCircle }
     }
-    if (vehicle.status === 'active') {
-      return { label: 'Active', color: 'text-green-400 bg-green-500/20', icon: CheckCircle }
-    }
-    if (vehicle.status === 'draft') {
-      return { label: 'Draft', color: 'text-gray-400 bg-gray-500/20', icon: AlertCircle }
-    }
-    if (vehicle.status === 'archived') {
-      return { label: 'Archived', color: 'text-white/40 bg-white/5', icon: AlertCircle }
-    }
-    return { label: 'Unknown', color: 'text-gray-400 bg-gray-500/20', icon: AlertCircle }
   }
 
-  // Generic update helper — reduces duplication across all toggle handlers
   const updateVehicle = async (vehicleId: string, patch: Partial<Vehicle>) => {
     setActionLoading(vehicleId)
     try {
@@ -255,10 +345,11 @@ export default function ListingManagement() {
     updateVehicle(vehicleId, { unavailable })
 
   // ==========================================
-  // Status change handler
+  // Only updates the status column — does NOT touch sold
   // ==========================================
   const handleStatusChange = async (vehicleId: string, newStatus: StatusValue) => {
-    setOpenStatusMenu(null)
+    setOpenStatusVehicleId(null)
+    setMenuPosition(null)
     await updateVehicle(vehicleId, { status: newStatus })
   }
 
@@ -295,14 +386,32 @@ export default function ListingManagement() {
     if (filter !== 'all') {
       filtered = filtered.filter(v => {
         switch (filter) {
-          case 'active': return v.status === 'active' && !v.sold && !v.unavailable && !v.Removed
-          case 'pending': return v.status === 'pending'
-          case 'sold': return v.sold === true
-          case 'featured': return v.featured === true
-          case 'luxury': return v.luxury === true
-          case 'unavailable': return v.unavailable === true
-          case 'removed': return v.Removed === true
-          default: return true
+          case 'active':
+            return (
+              normalizeStatus(v.status) === 'active' &&
+              !v.sold &&
+              !v.unavailable &&
+              !v.Removed
+            )
+          case 'pending':
+            return (
+              normalizeStatus(v.status) === 'pending' &&
+              !v.sold &&
+              !v.unavailable &&
+              !v.Removed
+            )
+          case 'sold':
+            return v.sold === true
+          case 'featured':
+            return v.featured === true
+          case 'luxury':
+            return v.luxury === true
+          case 'unavailable':
+            return v.unavailable === true
+          case 'removed':
+            return v.Removed === true
+          default:
+            return true
         }
       })
     }
@@ -315,22 +424,18 @@ export default function ListingManagement() {
           ? `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase()
           : ''
 
-        // Existing fields
         if (v.title?.toLowerCase().includes(q)) return true
         if (v.brand?.toLowerCase().includes(q)) return true
         if (v.model?.toLowerCase().includes(q)) return true
         if (`${v.brand} ${v.model}`.toLowerCase().includes(q)) return true
         if (v.car_code?.toLowerCase().includes(q)) return true
+        if (v.id?.toLowerCase().includes(q)) return true
         if (userName.includes(q)) return true
         if (user?.email?.toLowerCase().includes(q)) return true
 
-        // NEW: search by vehicle id
-        if (v.id?.toLowerCase().includes(q)) return true
-
-        // NEW: search by car_code with or without a leading '#'
         if (q.startsWith('#')) {
-          const bareQ = q.slice(1)
-          if (v.car_code?.toLowerCase().includes(bareQ)) return true
+          const bare = q.slice(1)
+          if (v.car_code?.toLowerCase().includes(bare)) return true
         }
 
         return false
@@ -342,6 +447,34 @@ export default function ListingManagement() {
 
   const formatCurrency = (amount: number) => {
     return `₦${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+
+  // ==========================================
+  // Open the portal menu at a computed position
+  // ==========================================
+  const openStatusMenuFor = (vehicleId: string) => {
+    const btn = buttonRefs.current[vehicleId]
+    if (!btn) return
+
+    const rect = btn.getBoundingClientRect()
+    const menuWidth = 160
+    const menuHeight = STATUS_OPTIONS.length * 36 + 8
+
+    let top = rect.bottom + 6
+    let left = rect.right - menuWidth
+
+    // Flip up if not enough space below
+    if (top + menuHeight > window.innerHeight) {
+      top = rect.top - menuHeight - 6
+    }
+    // Keep inside viewport
+    if (left < 8) left = 8
+    if (left + menuWidth > window.innerWidth - 8) {
+      left = window.innerWidth - menuWidth - 8
+    }
+
+    setMenuPosition({ top, left })
+    setOpenStatusVehicleId(vehicleId)
   }
 
   const filteredVehicles = getFilteredVehicles()
@@ -472,7 +605,9 @@ export default function ListingManagement() {
             const isExpanded = expandedVehicle === vehicle.id
             const isActionLoading = actionLoading === vehicle.id
             const coverImage = vehicle.cover_image || vehicle.images?.[0] || null
-            const isStatusMenuOpen = openStatusMenu === vehicle.id
+            const isStatusMenuOpen = openStatusVehicleId === vehicle.id
+            const currentStatusValue = normalizeStatus(vehicle.status)
+            const currentStatusOption = STATUS_OPTIONS.find(o => o.value === currentStatusValue)
 
             return (
               <div
@@ -602,59 +737,38 @@ export default function ListingManagement() {
 
                         <div className="flex items-center gap-1">
                           {/* ========================================== */}
-                          {/* STATUS SELECTOR                            */}
+                          {/* STATUS SELECTOR — trigger button only       */}
+                          {/* The menu is rendered into a portal below   */}
                           {/* ========================================== */}
-                          <div
-                            className="relative"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              onClick={() =>
-                                setOpenStatusMenu(isStatusMenuOpen ? null : vehicle.id)
+                          <button
+                            ref={(el) => {
+                              buttonRefs.current[vehicle.id] = el
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (isStatusMenuOpen) {
+                                setOpenStatusVehicleId(null)
+                                setMenuPosition(null)
+                              } else {
+                                openStatusMenuFor(vehicle.id)
                               }
-                              disabled={isActionLoading}
-                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-all disabled:opacity-50"
-                              title="Change status"
-                            >
-                              {isActionLoading ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Settings className="w-3 h-3" />
-                              )}
-                              Status
-                              <ChevronDown className={`w-3 h-3 transition-transform ${isStatusMenuOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {isStatusMenuOpen && (
-                              <div className="absolute right-0 bottom-full mb-1 z-30 min-w-[140px] bg-gray-900 border border-white/10 rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-1 duration-150">
-                                {STATUS_OPTIONS.map((opt) => {
-                                  const isCurrent =
-                                    (vehicle.status || 'active') === opt.value
-                                  return (
-                                    <button
-                                      key={opt.value}
-                                      onClick={() =>
-                                        handleStatusChange(vehicle.id, opt.value)
-                                      }
-                                      className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] text-left transition-colors ${
-                                        isCurrent
-                                          ? 'bg-red-500/10 text-white'
-                                          : 'text-white/70 hover:bg-white/5 hover:text-white'
-                                      }`}
-                                    >
-                                      <span
-                                        className={`w-1.5 h-1.5 rounded-full ${opt.color.split(' ')[1]}`}
-                                      />
-                                      {opt.label}
-                                      {isCurrent && (
-                                        <Check className="w-3 h-3 ml-auto text-red-400" />
-                                      )}
-                                    </button>
-                                  )
-                                })}
-                              </div>
+                            }}
+                            disabled={isActionLoading}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-all disabled:opacity-50"
+                            title="Change status"
+                          >
+                            {isActionLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  currentStatusOption?.dot || 'bg-orange-400'
+                                }`}
+                              />
                             )}
-                          </div>
+                            {currentStatusOption?.label || 'Pending'}
+                            <ChevronDown className={`w-3 h-3 transition-transform ${isStatusMenuOpen ? 'rotate-180' : ''}`} />
+                          </button>
 
                           {/* Toggle Sold */}
                           <button
@@ -801,6 +915,50 @@ export default function ListingManagement() {
           })}
         </div>
       )}
+
+      {/* ========================================== */}
+      {/* PORTAL: Status dropdown menu                */}
+      {/* Rendered into document.body so no parent    */}
+      {/* overflow:hidden or stacking context can     */}
+      {/* crop it.                                    */}
+      {/* ========================================== */}
+      {openStatusVehicleId &&
+        menuPosition &&
+        typeof window !== 'undefined' &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: 'fixed',
+              top: menuPosition.top,
+              left: menuPosition.left,
+              width: 160,
+            }}
+            className="z-[100] bg-gray-900 border border-white/10 rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+          >
+            {STATUS_OPTIONS.map((opt) => {
+              const vehicle = vehicles.find(v => v.id === openStatusVehicleId)
+              const current = normalizeStatus(vehicle?.status)
+              const isCurrent = current === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => handleStatusChange(openStatusVehicleId, opt.value)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] text-left transition-colors ${
+                    isCurrent
+                      ? 'bg-red-500/10 text-white'
+                      : 'text-white/70 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />
+                  {opt.label}
+                  {isCurrent && <Check className="w-3 h-3 ml-auto text-red-400" />}
+                </button>
+              )
+            })}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
