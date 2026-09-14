@@ -2,13 +2,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Search, 
-  Filter, 
-  Eye, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle, 
+import {
+  Search,
+  Filter,
+  Eye,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
   Loader2,
   Car,
   Calendar,
@@ -85,6 +85,19 @@ interface UserProfile {
 
 type FilterType = 'all' | 'active' | 'pending' | 'sold' | 'featured' | 'luxury' | 'unavailable' | 'removed'
 
+// ==========================================
+// Status options admins can assign
+// ==========================================
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active', color: 'text-green-400 bg-green-500/20 border-green-500/30' },
+  { value: 'pending', label: 'Pending', color: 'text-orange-400 bg-orange-500/20 border-orange-500/30' },
+  { value: 'sold', label: 'Sold', color: 'text-purple-400 bg-purple-500/20 border-purple-500/30' },
+  { value: 'draft', label: 'Draft', color: 'text-gray-400 bg-gray-500/20 border-gray-500/30' },
+  { value: 'archived', label: 'Archived', color: 'text-white/40 bg-white/5 border-white/10' },
+] as const
+
+type StatusValue = (typeof STATUS_OPTIONS)[number]['value']
+
 export default function ListingManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [users, setUsers] = useState<Record<string, UserProfile>>({})
@@ -94,6 +107,8 @@ export default function ListingManagement() {
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  // Tracks which vehicle's status dropdown is currently open
+  const [openStatusMenu, setOpenStatusMenu] = useState<string | null>(null)
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -108,7 +123,6 @@ export default function ListingManagement() {
     const fetchData = async () => {
       setLoading(true)
       try {
-        // Fetch all vehicles
         const { data: vehiclesData, error: vehiclesError } = await supabase
           .from('vehicles')
           .select('*')
@@ -118,7 +132,6 @@ export default function ListingManagement() {
 
         setVehicles(vehiclesData || [])
 
-        // Fetch user profiles
         const userIds = [...new Set(vehiclesData?.map(v => v.user_id) || [])]
         if (userIds.length > 0) {
           const { data: usersData, error: usersError } = await supabase
@@ -141,7 +154,6 @@ export default function ListingManagement() {
           }
         }
 
-        // Calculate stats
         calculateStats(vehiclesData || [])
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -153,6 +165,14 @@ export default function ListingManagement() {
 
     fetchData()
   }, [])
+
+  // Close status dropdown when clicking outside
+  useEffect(() => {
+    if (!openStatusMenu) return
+    const handleClick = () => setOpenStatusMenu(null)
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [openStatusMenu])
 
   const calculateStats = (vehiclesData: Vehicle[]) => {
     const active = vehiclesData.filter(v => v.status === 'active' && !v.sold && !v.unavailable && !v.Removed).length
@@ -187,20 +207,26 @@ export default function ListingManagement() {
     if (vehicle.status === 'active') {
       return { label: 'Active', color: 'text-green-400 bg-green-500/20', icon: CheckCircle }
     }
+    if (vehicle.status === 'draft') {
+      return { label: 'Draft', color: 'text-gray-400 bg-gray-500/20', icon: AlertCircle }
+    }
+    if (vehicle.status === 'archived') {
+      return { label: 'Archived', color: 'text-white/40 bg-white/5', icon: AlertCircle }
+    }
     return { label: 'Unknown', color: 'text-gray-400 bg-gray-500/20', icon: AlertCircle }
   }
 
-  const handleToggleSold = async (vehicleId: string, sold: boolean) => {
+  // Generic update helper — reduces duplication across all toggle handlers
+  const updateVehicle = async (vehicleId: string, patch: Partial<Vehicle>) => {
     setActionLoading(vehicleId)
     try {
       const { error } = await supabase
         .from('vehicles')
-        .update({ sold, updated_at: new Date().toISOString() })
+        .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', vehicleId)
 
       if (error) throw error
 
-      // Refresh data
       const { data: updatedVehicles } = await supabase
         .from('vehicles')
         .select('*')
@@ -216,82 +242,24 @@ export default function ListingManagement() {
     }
   }
 
-  const handleToggleFeatured = async (vehicleId: string, featured: boolean) => {
-    setActionLoading(vehicleId)
-    try {
-      const { error } = await supabase
-        .from('vehicles')
-        .update({ featured, updated_at: new Date().toISOString() })
-        .eq('id', vehicleId)
+  const handleToggleSold = (vehicleId: string, sold: boolean) =>
+    updateVehicle(vehicleId, { sold })
 
-      if (error) throw error
+  const handleToggleFeatured = (vehicleId: string, featured: boolean) =>
+    updateVehicle(vehicleId, { featured })
 
-      // Refresh data
-      const { data: updatedVehicles } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('created_at', { ascending: false })
+  const handleToggleLuxury = (vehicleId: string, luxury: boolean) =>
+    updateVehicle(vehicleId, { luxury })
 
-      setVehicles(updatedVehicles || [])
-      calculateStats(updatedVehicles || [])
-    } catch (err) {
-      console.error('Error updating vehicle:', err)
-      alert('Failed to update vehicle')
-    } finally {
-      setActionLoading(null)
-    }
-  }
+  const handleToggleUnavailable = (vehicleId: string, unavailable: boolean) =>
+    updateVehicle(vehicleId, { unavailable })
 
-  const handleToggleLuxury = async (vehicleId: string, luxury: boolean) => {
-    setActionLoading(vehicleId)
-    try {
-      const { error } = await supabase
-        .from('vehicles')
-        .update({ luxury, updated_at: new Date().toISOString() })
-        .eq('id', vehicleId)
-
-      if (error) throw error
-
-      // Refresh data
-      const { data: updatedVehicles } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      setVehicles(updatedVehicles || [])
-      calculateStats(updatedVehicles || [])
-    } catch (err) {
-      console.error('Error updating vehicle:', err)
-      alert('Failed to update vehicle')
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleToggleUnavailable = async (vehicleId: string, unavailable: boolean) => {
-    setActionLoading(vehicleId)
-    try {
-      const { error } = await supabase
-        .from('vehicles')
-        .update({ unavailable, updated_at: new Date().toISOString() })
-        .eq('id', vehicleId)
-
-      if (error) throw error
-
-      // Refresh data
-      const { data: updatedVehicles } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      setVehicles(updatedVehicles || [])
-      calculateStats(updatedVehicles || [])
-    } catch (err) {
-      console.error('Error updating vehicle:', err)
-      alert('Failed to update vehicle')
-    } finally {
-      setActionLoading(null)
-    }
+  // ==========================================
+  // Status change handler
+  // ==========================================
+  const handleStatusChange = async (vehicleId: string, newStatus: StatusValue) => {
+    setOpenStatusMenu(null)
+    await updateVehicle(vehicleId, { status: newStatus })
   }
 
   const handleDelete = async (vehicleId: string) => {
@@ -324,7 +292,6 @@ export default function ListingManagement() {
   const getFilteredVehicles = () => {
     let filtered = [...vehicles]
 
-    // Apply filter
     if (filter !== 'all') {
       filtered = filtered.filter(v => {
         switch (filter) {
@@ -340,19 +307,33 @@ export default function ListingManagement() {
       })
     }
 
-    // Apply search
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase().trim()
       filtered = filtered.filter(v => {
         const user = users[v.user_id]
-        const userName = user ? `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase() : ''
-        return v.title?.toLowerCase().includes(query) ||
-          v.brand?.toLowerCase().includes(query) ||
-          v.model?.toLowerCase().includes(query) ||
-          `${v.brand} ${v.model}`.toLowerCase().includes(query) ||
-          v.car_code?.toLowerCase().includes(query) ||
-          userName.includes(query) ||
-          user?.email?.toLowerCase().includes(query)
+        const userName = user
+          ? `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase()
+          : ''
+
+        // Existing fields
+        if (v.title?.toLowerCase().includes(q)) return true
+        if (v.brand?.toLowerCase().includes(q)) return true
+        if (v.model?.toLowerCase().includes(q)) return true
+        if (`${v.brand} ${v.model}`.toLowerCase().includes(q)) return true
+        if (v.car_code?.toLowerCase().includes(q)) return true
+        if (userName.includes(q)) return true
+        if (user?.email?.toLowerCase().includes(q)) return true
+
+        // NEW: search by vehicle id
+        if (v.id?.toLowerCase().includes(q)) return true
+
+        // NEW: search by car_code with or without a leading '#'
+        if (q.startsWith('#')) {
+          const bareQ = q.slice(1)
+          if (v.car_code?.toLowerCase().includes(bareQ)) return true
+        }
+
+        return false
       })
     }
 
@@ -469,8 +450,8 @@ export default function ListingManagement() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search vehicles..."
-            className="w-full sm:w-48 pl-9 pr-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder:text-white/30 focus:outline-none focus:border-red-500/50 transition-colors"
+            placeholder="Search by title, ID, car code..."
+            className="w-full sm:w-64 pl-9 pr-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder:text-white/30 focus:outline-none focus:border-red-500/50 transition-colors"
           />
         </div>
       </div>
@@ -491,6 +472,7 @@ export default function ListingManagement() {
             const isExpanded = expandedVehicle === vehicle.id
             const isActionLoading = actionLoading === vehicle.id
             const coverImage = vehicle.cover_image || vehicle.images?.[0] || null
+            const isStatusMenuOpen = openStatusMenu === vehicle.id
 
             return (
               <div
@@ -619,6 +601,61 @@ export default function ListingManagement() {
                         </div>
 
                         <div className="flex items-center gap-1">
+                          {/* ========================================== */}
+                          {/* STATUS SELECTOR                            */}
+                          {/* ========================================== */}
+                          <div
+                            className="relative"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() =>
+                                setOpenStatusMenu(isStatusMenuOpen ? null : vehicle.id)
+                              }
+                              disabled={isActionLoading}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-all disabled:opacity-50"
+                              title="Change status"
+                            >
+                              {isActionLoading ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Settings className="w-3 h-3" />
+                              )}
+                              Status
+                              <ChevronDown className={`w-3 h-3 transition-transform ${isStatusMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isStatusMenuOpen && (
+                              <div className="absolute right-0 bottom-full mb-1 z-30 min-w-[140px] bg-gray-900 border border-white/10 rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-1 duration-150">
+                                {STATUS_OPTIONS.map((opt) => {
+                                  const isCurrent =
+                                    (vehicle.status || 'active') === opt.value
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      onClick={() =>
+                                        handleStatusChange(vehicle.id, opt.value)
+                                      }
+                                      className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] text-left transition-colors ${
+                                        isCurrent
+                                          ? 'bg-red-500/10 text-white'
+                                          : 'text-white/70 hover:bg-white/5 hover:text-white'
+                                      }`}
+                                    >
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full ${opt.color.split(' ')[1]}`}
+                                      />
+                                      {opt.label}
+                                      {isCurrent && (
+                                        <Check className="w-3 h-3 ml-auto text-red-400" />
+                                      )}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+
                           {/* Toggle Sold */}
                           <button
                             onClick={() => handleToggleSold(vehicle.id, !vehicle.sold)}
@@ -703,11 +740,11 @@ export default function ListingManagement() {
                     <div className="pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                       <div>
                         <p className="text-white/40 mb-1">Vehicle ID</p>
-                        <p className="text-white/80 font-mono text-[10px]">{vehicle.id}</p>
+                        <p className="text-white/80 font-mono text-[10px] break-all">{vehicle.id}</p>
                       </div>
                       <div>
                         <p className="text-white/40 mb-1">User ID</p>
-                        <p className="text-white/80 font-mono text-[10px]">{vehicle.user_id}</p>
+                        <p className="text-white/80 font-mono text-[10px] break-all">{vehicle.user_id}</p>
                       </div>
                       <div>
                         <p className="text-white/40 mb-1">Car Code</p>
