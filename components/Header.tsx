@@ -277,23 +277,23 @@ export default function Header() {
               )}
             </form>
 
-            {/* Mobile Search Toggle */}
+            {/* Mobile Search Toggle - Slightly larger icon and pure white */}
             <button 
-              className="md:hidden text-white/60 hover:text-white transition-colors"
+              className="md:hidden text-white hover:text-white transition-colors"
               onClick={() => setIsSearchOpen(!isSearchOpen)}
               aria-label="Toggle search"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-[18px] h-[18px]" />
             </button>
 
-            {/* Notifications - Only visible to auth users */}
+            {/* Notifications - Only visible to auth users - Slightly larger icon and pure white on mobile */}
             {!loading && user && (
               <button 
                 onClick={() => setIsNotificationOpen(true)}
-                className="relative text-white/60 hover:text-white transition-colors" 
+                className="relative text-white md:text-white/60 hover:text-white transition-colors" 
                 aria-label="Notifications"
               >
-                <Bell className="w-4 h-4 md:w-5 md:h-5" />
+                <Bell className="w-[18px] h-[18px] md:w-5 md:h-5" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-3.5 h-3.5 md:w-4 md:h-4 bg-red-500 rounded-full text-[8px] md:text-[10px] flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -326,16 +326,16 @@ export default function Header() {
               </div>
             )}
 
-            {/* Mobile Menu Toggle */}
+            {/* Mobile Menu Toggle - Slightly larger icon and pure white */}
             <button 
-              className="md:hidden text-white/60 hover:text-white transition-colors"
+              className="md:hidden text-white hover:text-white transition-colors"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Toggle menu"
             >
               {isMobileMenuOpen ? (
-                <X className="w-4 h-4" />
+                <X className="w-[18px] h-[18px]" />
               ) : (
-                <Menu className="w-4 h-4" />
+                <Menu className="w-[18px] h-[18px]" />
               )}
             </button>
 
@@ -552,7 +552,7 @@ export default function Header() {
           </form>
         )}
 
-        {/* Mobile Menu - Scrollable */}
+        {/* Mobile Menu - Scrollable - Contents unchanged */}
         {isMobileMenuOpen && (
           <div 
             ref={mobileMenuRef}

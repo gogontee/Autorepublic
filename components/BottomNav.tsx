@@ -14,7 +14,7 @@ interface NavItem {
 }
 
 export default function BottomNav() {
-  const pathname = usePathname() || '' // Provide fallback empty string
+  const pathname = usePathname() || ''
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,14 +62,14 @@ export default function BottomNav() {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
           const Icon = item.icon
 
-          // If it's the profile link and user is not logged in, use a div with onClick
+          // If it's the profile link and user is not logged in, use a button with onClick
           if (item.id === 'profile' && !userId && !loading) {
             return (
               <button
                 key={item.id}
                 onClick={() => router.push('/auth/login')}
                 className={`flex flex-col items-center gap-0.5 transition-colors ${
-                  isActive ? 'text-red-500' : 'text-white/40 hover:text-white/60'
+                  isActive ? 'text-red-500' : 'text-white hover:text-white'
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -84,7 +84,7 @@ export default function BottomNav() {
               href={item.href}
               onClick={item.id === 'profile' ? handleProfileClick : undefined}
               className={`flex flex-col items-center gap-0.5 transition-colors ${
-                isActive ? 'text-red-500' : 'text-white/40 hover:text-white/60'
+                isActive ? 'text-red-500' : 'text-white hover:text-white'
               }`}
             >
               <Icon className="w-5 h-5" />
