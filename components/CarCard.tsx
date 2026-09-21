@@ -63,8 +63,10 @@ export default function CarCard({ car, index }: CarCardProps) {
         ? [car.image] 
         : ['/api/placeholder/400/300']
   
-  // Get the price
-  const displayPrice = typeof car.price === 'number' ? `$${car.price.toLocaleString()}` : car.price
+  // Get the price - Format in Naira (₦)
+  const displayPrice = typeof car.price === 'number' 
+    ? `₦${car.price.toLocaleString()}` 
+    : car.price
   
   // Get the fuel type
   const fuelType = car.fuel_type || car.fuel || 'N/A'
@@ -457,7 +459,7 @@ export default function CarCard({ car, index }: CarCardProps) {
               <div className="flex items-center gap-2">
                 <span className="text-[8px] text-amber-400">Current Bid:</span>
                 <span className="text-[9px] font-medium text-white">
-                  ${(car.current_bid || car.starting_bid || 0).toLocaleString()}
+                  ₦{(car.current_bid || car.starting_bid || 0).toLocaleString()}
                 </span>
                 {car.bid_count && car.bid_count > 0 && (
                   <span className="text-[8px] text-white/30">({car.bid_count} bids)</span>
