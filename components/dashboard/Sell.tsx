@@ -181,9 +181,15 @@ export default function Sell({
   const colorScrollRef = useRef<HTMLDivElement>(null)
   const interiorColorScrollRef = useRef<HTMLDivElement>(null)
   const stateButtonRef = useRef<HTMLButtonElement>(null)
-  const cityButtonRef = useRef<HTMLButtonElement>(null)
   const stateDropdownRef = useRef<HTMLDivElement>(null)
-  const cityDropdownRef = useRef<HTMLDivElement>(null)
+  // ✅ Refs for city input container (text input + dropdown)
+  const cityContainerRef = useRef<HTMLDivElement>(null)
+  const cityInputRef = useRef<HTMLInputElement>(null)
+  // Refs for text-suggestion dropdown containers
+  const brandContainerRef = useRef<HTMLDivElement>(null)
+  const modelContainerRef = useRef<HTMLDivElement>(null)
+  const trimContainerRef = useRef<HTMLDivElement>(null)
+  const engineContainerRef = useRef<HTMLDivElement>(null)
 
   // Initialize formData with saved data if available
   const defaultFormData = {
@@ -205,7 +211,7 @@ export default function Sell({
     category: '',
     city: '',
     state: '',
-    country: '',
+    country: 'Nigeria',
     fullAddress: '',
     phone: profile?.phone || '',
     isAuction: false,
@@ -243,7 +249,6 @@ export default function Sell({
   // ==========================================
   // PROFILE COMPLETION GATE
   // ==========================================
-  // Compute missing fields from the live profile (which may be fresher than the prop)
   const profileMissing = {
     avatar: !liveProfile?.avatar_url,
     phone: !liveProfile?.phone,
@@ -251,7 +256,6 @@ export default function Sell({
   }
   const hasMissingProfileFields = profileMissing.avatar || profileMissing.phone || profileMissing.verified
 
-  // Fetch the freshest profile on mount so we don't show the gate unnecessarily
   useEffect(() => {
     if (!user?.id) return
     const fetchProfile = async () => {
@@ -271,7 +275,6 @@ export default function Sell({
     fetchProfile()
   }, [user?.id])
 
-  // Show the gate when the profile is incomplete (unless dismissed this session)
   useEffect(() => {
     if (!user?.id) return
     if (!hasMissingProfileFields) return
@@ -280,7 +283,6 @@ export default function Sell({
     const key = `${PROFILE_GATE_KEY_PREFIX}${user.id}`
     if (sessionStorage.getItem(key) === 'true') return
 
-    // Slight delay so the page renders first
     const timer = setTimeout(() => setShowProfileGate(true), 500)
     return () => clearTimeout(timer)
   }, [user?.id, hasMissingProfileFields])
@@ -332,6 +334,45 @@ export default function Sell({
     fetchAllBrands()
     fetchAllStates()
   }, [])
+
+  // ==========================================
+  // ✅ GLOBAL OUTSIDE-CLICK HANDLER
+  // ==========================================
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+
+      if (showBrandSuggestions && brandContainerRef.current && !brandContainerRef.current.contains(target)) {
+        setShowBrandSuggestions(false)
+      }
+      if (showModelSuggestions && modelContainerRef.current && !modelContainerRef.current.contains(target)) {
+        setShowModelSuggestions(false)
+      }
+      if (showTrimSuggestions && trimContainerRef.current && !trimContainerRef.current.contains(target)) {
+        setShowTrimSuggestions(false)
+      }
+      if (showEngineSuggestions && engineContainerRef.current && !engineContainerRef.current.contains(target)) {
+        setShowEngineSuggestions(false)
+      }
+      if (isStateDropdownOpen && stateDropdownRef.current && !stateDropdownRef.current.contains(target) && !stateButtonRef.current?.contains(target)) {
+        setIsStateDropdownOpen(false)
+      }
+      // ✅ City: input + dropdown both live inside cityContainerRef
+      if (isCityDropdownOpen && cityContainerRef.current && !cityContainerRef.current.contains(target)) {
+        setIsCityDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [
+    showBrandSuggestions,
+    showModelSuggestions,
+    showTrimSuggestions,
+    showEngineSuggestions,
+    isStateDropdownOpen,
+    isCityDropdownOpen,
+  ])
 
   // Fetch all states
   const fetchAllStates = async () => {
@@ -398,10 +439,6 @@ export default function Sell({
 
         const uniqueModels = [...new Set(data.map((item: any) => item.model))]
         setAllModels(uniqueModels)
-        if (uniqueModels.length > 0) {
-          setModelSuggestions(uniqueModels)
-          setShowModelSuggestions(true)
-        }
       } catch (err) {
         console.error('Error fetching models:', err)
       }
@@ -430,10 +467,6 @@ export default function Sell({
 
         if (data?.trims) {
           setAllTrims(data.trims)
-          if (data.trims.length > 0) {
-            setTrimSuggestions(data.trims)
-            setShowTrimSuggestions(true)
-          }
         }
       } catch (err) {
         console.error('Error fetching trims:', err)
@@ -443,10 +476,21 @@ export default function Sell({
     fetchTrimsForModel()
   }, [formData.model])
 
-  // Handle engine suggestions
+  // ==========================================
+  // ENGINE HANDLERS
+  // ==========================================
   const handleEngineFocus = () => {
     setEngineSuggestions(engineTypes)
     setShowEngineSuggestions(true)
+  }
+
+  const handleEngineClick = () => {
+    if (showEngineSuggestions) {
+      setShowEngineSuggestions(false)
+    } else {
+      setEngineSuggestions(engineTypes)
+      setShowEngineSuggestions(true)
+    }
   }
 
   const handleEngineChange = (value: string) => {
@@ -468,9 +512,20 @@ export default function Sell({
     setShowEngineSuggestions(false)
   }
 
-  // Handle brand input
+  // ==========================================
+  // BRAND HANDLERS
+  // ==========================================
   const handleBrandFocus = () => {
-    if (allBrands.length > 0) {
+    if (allBrands.length > 0 && !showBrandSuggestions) {
+      setBrandSuggestions(allBrands)
+      setShowBrandSuggestions(true)
+    }
+  }
+
+  const handleBrandClick = () => {
+    if (showBrandSuggestions) {
+      setShowBrandSuggestions(false)
+    } else if (allBrands.length > 0) {
       setBrandSuggestions(allBrands)
       setShowBrandSuggestions(true)
     }
@@ -492,16 +547,22 @@ export default function Sell({
     }
   }
 
-  // Handle model input
+  // ==========================================
+  // MODEL HANDLERS
+  // ==========================================
   const handleModelFocus = () => {
-    if (formData.brand) {
-      if (allModels.length > 0) {
-        setModelSuggestions(allModels)
-        setShowModelSuggestions(true)
-      }
-    } else {
-      setModelSuggestions([])
+    if (formData.brand && allModels.length > 0 && !showModelSuggestions) {
+      setModelSuggestions(allModels)
+      setShowModelSuggestions(true)
+    }
+  }
+
+  const handleModelClick = () => {
+    if (showModelSuggestions) {
       setShowModelSuggestions(false)
+    } else if (formData.brand && allModels.length > 0) {
+      setModelSuggestions(allModels)
+      setShowModelSuggestions(true)
     }
   }
 
@@ -521,9 +582,20 @@ export default function Sell({
     }
   }
 
-  // Handle trim input
+  // ==========================================
+  // TRIM HANDLERS
+  // ==========================================
   const handleTrimFocus = () => {
-    if (formData.model && allTrims.length > 0) {
+    if (formData.model && allTrims.length > 0 && !showTrimSuggestions) {
+      setTrimSuggestions(allTrims)
+      setShowTrimSuggestions(true)
+    }
+  }
+
+  const handleTrimClick = () => {
+    if (showTrimSuggestions) {
+      setShowTrimSuggestions(false)
+    } else if (formData.model && allTrims.length > 0) {
       setTrimSuggestions(allTrims)
       setShowTrimSuggestions(true)
     }
@@ -572,23 +644,47 @@ export default function Sell({
     fetchBrandFromModel()
   }, [formData.model])
 
-  // Location dropdown handlers
+  // ==========================================
+  // STATE DROPDOWN HANDLERS
+  // ==========================================
   const toggleStateDropdown = () => {
-    setIsStateDropdownOpen(!isStateDropdownOpen)
+    setIsStateDropdownOpen(prev => !prev)
     setIsCityDropdownOpen(false)
-  }
-
-  const toggleCityDropdown = () => {
-    if (formData.state) {
-      setIsCityDropdownOpen(!isCityDropdownOpen)
-      setIsStateDropdownOpen(false)
-    }
   }
 
   const selectState = (state: string) => {
     setFormData((prev: typeof formData) => ({ ...prev, state, city: '' }))
     setIsStateDropdownOpen(false)
     setStateSearch('')
+  }
+
+  // ==========================================
+  // ✅ CITY HANDLERS — behaves just like brand/model/trim
+  // The city field is always a text input, users can type freely.
+  // The chevron toggles a dropdown of suggestions.
+  // ==========================================
+  const handleCityFocus = () => {
+    if (formData.state && allCities.length > 0 && !isCityDropdownOpen) {
+      setIsCityDropdownOpen(true)
+    }
+  }
+
+  const handleCityClick = () => {
+    if (!formData.state) return
+    if (isCityDropdownOpen) {
+      setIsCityDropdownOpen(false)
+    } else {
+      setIsCityDropdownOpen(true)
+    }
+  }
+
+  const handleCityChange = (value: string) => {
+    setFormData((prev: typeof formData) => ({ ...prev, city: value }))
+    if (error) setError('')
+    // Keep the dropdown open while typing so the user can see filtered matches
+    if (formData.state) {
+      setIsCityDropdownOpen(true)
+    }
   }
 
   const selectCity = (city: string) => {
@@ -602,8 +698,9 @@ export default function Sell({
     state.toLowerCase().includes(stateSearch.toLowerCase())
   )
 
+  // ✅ Filter cities based on the actual typed value in the city field
   const filteredCities = allCities.filter((city: string) =>
-    city.toLowerCase().includes(citySearch.toLowerCase())
+    city.toLowerCase().includes((formData.city || '').toLowerCase())
   )
 
   const selectBrand = (brand: string) => {
@@ -662,39 +759,33 @@ export default function Sell({
     if (error) setError('')
   }
 
-  // Handle auction toggle
   const handleAuctionToggle = () => {
     setFormData((prev: typeof formData) => ({ ...prev, isAuction: !prev.isAuction }))
     if (error) setError('')
   }
 
-  // Handle defects toggle
   const handleDefectsToggle = () => {
     setFormData((prev: typeof formData) => ({ 
       ...prev, 
       hasDefects: !prev.hasDefects,
-      defects: !prev.hasDefects ? prev.defects : '' // Clear defects when toggling off
+      defects: !prev.hasDefects ? prev.defects : ''
     }))
     if (error) setError('')
   }
 
-  // Handle description change for rich text
   const handleDescriptionChange = (value: string) => {
     setFormData((prev: typeof formData) => ({ ...prev, description: value }))
     if (error) setError('')
   }
 
-  // Handle color selection - Exterior
   const selectExteriorColor = (colorName: string) => {
     setFormData((prev: typeof formData) => ({ ...prev, color: colorName }))
   }
 
-  // Handle color selection - Interior
   const selectInteriorColor = (colorName: string) => {
     setFormData((prev: typeof formData) => ({ ...prev, interiorColor: colorName }))
   }
 
-  // Scroll color picker
   const scrollColors = (direction: 'left' | 'right', ref: React.RefObject<HTMLDivElement>) => {
     if (ref.current) {
       const scrollAmount = 120
@@ -767,7 +858,7 @@ export default function Sell({
       category: '',
       city: '',
       state: '',
-      country: '',
+      country: 'Nigeria',
       fullAddress: '',
       phone: profile?.phone || '',
       isAuction: false,
@@ -785,9 +876,6 @@ export default function Sell({
       return
     }
 
-    // ==========================================
-    // HARD GATE: block submission if profile is incomplete
-    // ==========================================
     if (hasMissingProfileFields) {
       setShowProfileGate(true)
       setError('Please complete your profile before listing a vehicle')
@@ -814,7 +902,6 @@ export default function Sell({
     setSuccess(false)
 
     try {
-      // Find LGA for the selected city
       let lga = null
       if (formData.city && formData.state) {
         lga = await findLGAForCity(formData.city, formData.state)
@@ -873,7 +960,7 @@ export default function Sell({
           cover_image: coverImageUrl,
           city: formData.city || null,
           state: formData.state || null,
-          country: formData.country || null,
+          country: formData.country || 'Nigeria',
           lga: lga || null,
           full_address: formData.fullAddress || null,
           phone: formData.phone || null,
@@ -922,9 +1009,7 @@ export default function Sell({
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* ==========================================
-          PROFILE COMPLETION GATE POPUP
-          ========================================== */}
+      {/* PROFILE COMPLETION GATE POPUP */}
       {showProfileGate && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl p-6 sm:p-8 max-w-md w-full border border-amber-500/20 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
@@ -952,7 +1037,6 @@ export default function Sell({
             </p>
 
             <div className="space-y-2.5 mb-5">
-              {/* Avatar requirement */}
               {profileMissing.avatar && (
                 <div className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
                   <div className="w-8 h-8 rounded-lg bg-red-500/15 border border-red-500/20 flex items-center justify-center flex-shrink-0">
@@ -967,7 +1051,6 @@ export default function Sell({
                 </div>
               )}
 
-              {/* Phone requirement */}
               {profileMissing.phone && (
                 <div className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
@@ -982,7 +1065,6 @@ export default function Sell({
                 </div>
               )}
 
-              {/* Verification requirement */}
               {profileMissing.verified && (
                 <div className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
                   <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
@@ -1040,7 +1122,7 @@ export default function Sell({
                 <div className="flex items-center gap-3 mt-1 text-xs text-white/40">
                   <span>{formData.year}</span>
                   <span>•</span>
-                  <span>{formData.price ? `$${parseInt(formData.price).toLocaleString()}` : ''}</span>
+                  <span>{formData.price ? `₦${parseInt(formData.price).toLocaleString()}` : ''}</span>
                   <span>•</span>
                   <span className="capitalize">{formData.condition}</span>
                 </div>
@@ -1225,7 +1307,7 @@ export default function Sell({
             </div>
 
             {/* Brand */}
-            <div className="relative">
+            <div className="relative" ref={brandContainerRef}>
               <label className="block text-xs font-medium text-white/60 mb-1">Brand *</label>
               <div className="relative">
                 <input
@@ -1240,7 +1322,14 @@ export default function Sell({
                   placeholder="e.g. Porsche"
                   autoComplete="off"
                 />
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <button
+                  type="button"
+                  onClick={handleBrandClick}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded transition-colors"
+                  tabIndex={-1}
+                >
+                  <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${showBrandSuggestions ? 'rotate-180' : ''}`} />
+                </button>
               </div>
               
               {showBrandSuggestions && brandSuggestions.length > 0 && (
@@ -1261,7 +1350,7 @@ export default function Sell({
             </div>
 
             {/* Model */}
-            <div className="relative">
+            <div className="relative" ref={modelContainerRef}>
               <label className="block text-xs font-medium text-white/60 mb-1">Model *</label>
               <div className="relative">
                 <input
@@ -1276,7 +1365,14 @@ export default function Sell({
                   placeholder="e.g. 911 Turbo S"
                   autoComplete="off"
                 />
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <button
+                  type="button"
+                  onClick={handleModelClick}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded transition-colors"
+                  tabIndex={-1}
+                >
+                  <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${showModelSuggestions ? 'rotate-180' : ''}`} />
+                </button>
               </div>
               
               {showModelSuggestions && modelSuggestions.length > 0 && (
@@ -1297,7 +1393,7 @@ export default function Sell({
             </div>
 
             {/* Trim */}
-            <div className="relative">
+            <div className="relative" ref={trimContainerRef}>
               <label className="block text-xs font-medium text-white/60 mb-1">Trim (Optional)</label>
               <div className="relative">
                 <input
@@ -1311,7 +1407,14 @@ export default function Sell({
                   placeholder="e.g. Turbo S"
                   autoComplete="off"
                 />
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <button
+                  type="button"
+                  onClick={handleTrimClick}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded transition-colors"
+                  tabIndex={-1}
+                >
+                  <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${showTrimSuggestions ? 'rotate-180' : ''}`} />
+                </button>
               </div>
               
               {showTrimSuggestions && trimSuggestions.length > 0 && (
@@ -1348,9 +1451,9 @@ export default function Sell({
               </select>
             </div>
 
-            {/* Price */}
+            {/* ✅ Price in Naira */}
             <div>
-              <label className="block text-xs font-medium text-white/60 mb-1">Price ($) *</label>
+              <label className="block text-xs font-medium text-white/60 mb-1">Price (₦) *</label>
               <input
                 type="number"
                 name="price"
@@ -1359,8 +1462,13 @@ export default function Sell({
                 required
                 min={0}
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-red-500/50 transition-colors"
-                placeholder="245000"
+                placeholder="e.g. 45000000"
               />
+              <p className="text-[10px] text-white/30 mt-1">
+                {formData.price
+                  ? `₦${parseInt(formData.price || '0').toLocaleString()}`
+                  : 'Enter the price in Nigerian Naira'}
+              </p>
             </div>
 
             {/* Mileage */}
@@ -1408,7 +1516,7 @@ export default function Sell({
               </select>
             </div>
 
-            {/* Exterior Color - Compact Scrollable */}
+            {/* Exterior Color */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-white/60 mb-2">Exterior Color</label>
               <div className="relative">
@@ -1463,7 +1571,7 @@ export default function Sell({
               />
             </div>
 
-            {/* Interior Color - Compact Scrollable */}
+            {/* Interior Color */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-white/60 mb-2">Interior Color</label>
               <div className="relative">
@@ -1518,11 +1626,11 @@ export default function Sell({
               />
             </div>
 
-            {/* Engine Type with Suggestions */}
-            <div className="relative">
+            {/* Engine Type */}
+            <div className="relative" ref={engineContainerRef}>
               <label className="block text-xs font-medium text-white/60 mb-1">Engine Type</label>
               <div className="relative">
-                <Gauge className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <Gauge className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
                 <input
                   ref={engineInputRef}
                   type="text"
@@ -1534,7 +1642,14 @@ export default function Sell({
                   placeholder="e.g. V8, V6, Electric"
                   autoComplete="off"
                 />
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <button
+                  type="button"
+                  onClick={handleEngineClick}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded transition-colors"
+                  tabIndex={-1}
+                >
+                  <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${showEngineSuggestions ? 'rotate-180' : ''}`} />
+                </button>
               </div>
               
               {showEngineSuggestions && engineSuggestions.length > 0 && (
@@ -1620,7 +1735,7 @@ export default function Sell({
               <p className="text-[10px] text-white/30 mt-1">This will be displayed for buyers to contact you</p>
             </div>
 
-            {/* Location - Custom Location Selector */}
+            {/* Location */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-white/60 mb-2">Location *</label>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
@@ -1690,52 +1805,55 @@ export default function Sell({
                   )}
                 </div>
 
-                {/* City Dropdown */}
-                <div className="relative">
+                {/* ✅ City — text input with dropdown, just like brand/model/trim */}
+                <div className="relative" ref={cityContainerRef}>
                   <label className="block text-[10px] text-white/40 mb-1">City</label>
-                  <button
-                    ref={cityButtonRef}
-                    type="button"
-                    onClick={toggleCityDropdown}
-                    disabled={!formData.state}
-                    className={`w-full flex items-center justify-between px-3 py-2 bg-white/5 border rounded-xl text-sm transition-all ${
-                      !formData.state
-                        ? 'border-white/5 text-white/30 cursor-not-allowed'
-                        : formData.city 
-                          ? 'border-red-500/50 text-white bg-red-500/5' 
-                          : 'border-white/10 text-white/60 hover:border-white/30'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-white/40" />
-                      {formData.city || (formData.state ? 'Select City' : 'Select State First')}
-                    </span>
-                    <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {isCityDropdownOpen && formData.state && (
-                    <div 
-                      ref={cityDropdownRef}
-                      className="absolute z-20 w-full mt-1 bg-black/95 border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                    <input
+                      ref={cityInputRef}
+                      type="text"
+                      name="city"
+                      value={formData.city}
+                      onChange={(e) => handleCityChange(e.target.value)}
+                      onFocus={handleCityFocus}
+                      disabled={!formData.state}
+                      className={`w-full pl-10 pr-8 py-2 bg-white/5 border rounded-xl text-sm transition-colors ${
+                        !formData.state
+                          ? 'border-white/5 text-white/30 cursor-not-allowed placeholder:text-white/20'
+                          : 'border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-red-500/50'
+                      }`}
+                      placeholder={formData.state ? 'Type or select your city' : 'Select state first'}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCityClick}
+                      disabled={!formData.state}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded transition-colors ${
+                        !formData.state ? 'cursor-not-allowed' : 'hover:bg-white/10'
+                      }`}
+                      tabIndex={-1}
                     >
-                      <div className="p-2 border-b border-white/5">
-                        <input
-                          type="text"
-                          placeholder="Search cities..."
-                          value={citySearch}
-                          onChange={(e) => setCitySearch(e.target.value)}
-                          className="w-full px-3 py-1.5 bg-white/5 text-white text-xs rounded-lg border border-white/10 focus:border-red-500/50 focus:outline-none placeholder:text-white/30"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${
+                        !formData.state ? 'text-white/20' : 'text-white/40'
+                      } ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+
+                  {/* City dropdown — filters as the user types */}
+                  {isCityDropdownOpen && formData.state && (
+                    <div className="absolute z-20 w-full mt-1 bg-black/95 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
                       <div className="max-h-48 overflow-y-auto">
                         {isLoadingCities ? (
                           <div className="flex items-center justify-center py-6">
                             <Loader2 className="w-4 h-4 text-white/40 animate-spin" />
                           </div>
                         ) : filteredCities.length === 0 ? (
-                          <div className="text-center py-6 text-white/40 text-xs">
-                            No cities found for this state
+                          <div className="px-4 py-6 text-center text-white/40 text-xs">
+                            {formData.city
+                              ? <>No match for "<span className="text-white/60">{formData.city}</span>". You can keep typing to use it as your city.</>
+                              : 'No cities available — type to enter your city'}
                           </div>
                         ) : (
                           filteredCities.map((city: string) => (
@@ -1744,12 +1862,12 @@ export default function Sell({
                               type="button"
                               onClick={() => selectCity(city)}
                               className={`w-full px-4 py-2 text-sm text-left transition-colors flex items-center gap-2 ${
-                                formData.city === city
+                                formData.city.toLowerCase() === city.toLowerCase()
                                   ? 'bg-red-500/10 text-red-500'
                                   : 'text-white/80 hover:bg-white/5'
                               }`}
                             >
-                              {formData.city === city && <Check className="w-3.5 h-3.5" />}
+                              {formData.city.toLowerCase() === city.toLowerCase() && <Check className="w-3.5 h-3.5" />}
                               {city}
                             </button>
                           ))
@@ -1884,7 +2002,7 @@ export default function Sell({
               </div>
             </div>
 
-            {/* Description - Rich Text Editor */}
+            {/* Description */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-white/60 mb-1.5">
                 Description *

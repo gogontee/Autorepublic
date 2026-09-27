@@ -1072,7 +1072,7 @@ export default function VehicleDetailContent({
                 </h1>
                 {!isRemoved && (
                   <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-red-500 whitespace-nowrap">
-                    ${vehicle.price.toLocaleString()}
+                    ₦{vehicle.price.toLocaleString()}
                   </p>
                 )}
               </div>
