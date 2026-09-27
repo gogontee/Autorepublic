@@ -1,7 +1,7 @@
 // app/dashboard/[id]/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { 
   LayoutDashboard, 
@@ -88,28 +88,55 @@ export default function DashboardPage() {
   const [isAdsDropdownOpen, setIsAdsDropdownOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
 
+  // Guard to avoid duplicate redirects
+  const redirectingRef = useRef(false)
+
   // Get user ID from URL
   const userId = params?.id as string
 
-  // Check authentication and authorization
+  // ✅ AUTH CHECK — uses getUser() (server-verified) + onAuthStateChange safety net
   useEffect(() => {
+    let isMounted = true
+
+    const redirectToLogin = () => {
+      if (redirectingRef.current) return
+      redirectingRef.current = true
+      console.log('🔒 Redirecting to login')
+      router.replace('/auth/login')
+    }
+
+    const redirectToOwnDashboard = (realUserId: string) => {
+      if (redirectingRef.current) return
+      redirectingRef.current = true
+      console.log('↪️ Redirecting to own dashboard:', realUserId)
+      router.replace(`/dashboard/${realUserId}`)
+    }
+
     const checkAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error || !session) {
-          console.log('No session found, redirecting to login')
-          router.replace('/auth/login')
+        // ✅ getUser() verifies with Supabase server — reliable right after login
+        const { data: { user: authUser }, error } = await supabase.auth.getUser()
+
+        if (!isMounted) return
+
+        if (error || !authUser) {
+          console.log('No authenticated user, redirecting to login')
+          redirectToLogin()
           setLoading(false)
           return
         }
 
-        setUser(session.user)
-        setSession(session)
+        // Fetch the session for downstream components that need it
+        const { data: { session: currentSession } } = await supabase.auth.getSession()
 
-        if (session.user.id !== userId) {
+        if (!isMounted) return
+
+        setUser(authUser)
+        setSession(currentSession)
+
+        if (authUser.id !== userId) {
           console.log('User does not own this dashboard, redirecting to their own')
-          router.replace(`/dashboard/${session.user.id}`)
+          redirectToOwnDashboard(authUser.id)
           setLoading(false)
           return
         }
@@ -118,12 +145,44 @@ export default function DashboardPage() {
         setLoading(false)
       } catch (error) {
         console.error('Auth check error:', error)
-        router.replace('/auth/login')
+        if (!isMounted) return
+        redirectToLogin()
         setLoading(false)
       }
     }
 
     checkAuth()
+
+    // ✅ Safety net: react to auth state changes (e.g. sign-out, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        if (!isMounted) return
+
+        if (event === 'SIGNED_OUT') {
+          redirectToLogin()
+          return
+        }
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (newSession?.user) {
+            setUser(newSession.user)
+            setSession(newSession)
+
+            if (newSession.user.id !== userId) {
+              redirectToOwnDashboard(newSession.user.id)
+            } else {
+              setAuthorized(true)
+              setLoading(false)
+            }
+          }
+        }
+      }
+    )
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
   }, [userId, router])
 
   // ✅ RESTORE ACTIVE TAB — priority: URL ?tab= > payment return > localStorage > default

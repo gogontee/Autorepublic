@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import Header from '@/components/Header'
 import BottomNav from '@/components/BottomNav'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -40,8 +42,9 @@ export default function LoginPage() {
       }
 
       if (data?.user) {
-        // Directly redirect to the user's dashboard with their ID
-        window.location.href = `/dashboard/${data.user.id}`
+        // Use client-side navigation instead of hard reload
+        router.push(`/dashboard/${data.user.id}`)
+        router.refresh()
       }
     } catch (err) {
       setError('An unexpected error occurred')
