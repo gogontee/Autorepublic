@@ -24,6 +24,7 @@ import {
   Loader2,
   AlertCircle,
   KeyRound,
+  ShieldCheck,
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -39,6 +40,7 @@ import AdsManagement from '@/components/admin/AdsManagement'
 import MailboxManagement from '@/components/admin/Mailbox'
 import VehicleReportManagement from '@/components/admin/VehicleReport'
 import NotificationManagement from '@/components/admin/Notification'
+import VerificationManagement from '@/components/admin/VerificationManagement'
 import BlogManagement from '@/components/admin/BlogManagement'
 
 type AdminSection =
@@ -51,6 +53,7 @@ type AdminSection =
   | 'reports'
   | 'notifications'
   | 'blog'
+  | 'verifications'
 
 interface NavItem {
   id: AdminSection
@@ -68,6 +71,7 @@ export default function AdminPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [notifications, setNotifications] = useState(0)
+  const [pendingVerifications, setPendingVerifications] = useState(0)
 
   // ==========================================
   // Passcode gate state
@@ -81,6 +85,7 @@ export default function AdminPage() {
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'users', label: 'Users', icon: Users },
+    { id: 'verifications', label: 'Verify Seller', icon: ShieldCheck, badge: pendingVerifications },
     { id: 'vehicles', label: 'Vehicles', icon: Car },
     { id: 'vehiclelist', label: 'Vehicle List', icon: List },
     { id: 'ads', label: 'Ads', icon: Megaphone },
@@ -118,7 +123,7 @@ export default function AdminPage() {
     setPasscodeSubmitting(true)
 
     try {
-            const { data, error } = await supabase
+      const { data, error } = await supabase
         .from('autorepublic')
         .select('code')
         .eq('id', '7021cd37-e0c8-4f9f-87e9-7ea7a5b44c25')
@@ -187,13 +192,24 @@ export default function AdminPage() {
 
         setUser(session.user)
 
-        const { count } = await supabase
+        // Fetch notifications count
+        const { count: notifCount } = await supabase
           .from('notifications')
           .select('*', { count: 'exact', head: true })
           .eq('is_read', false)
 
-        if (count !== null) {
-          setNotifications(count)
+        if (notifCount !== null) {
+          setNotifications(notifCount)
+        }
+
+        // Fetch pending verifications count
+        const { count: verifyCount } = await supabase
+          .from('verify')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending')
+
+        if (verifyCount !== null) {
+          setPendingVerifications(verifyCount)
         }
       } catch (err) {
         console.error('Auth error:', err)
@@ -205,6 +221,20 @@ export default function AdminPage() {
 
     checkAuth()
   }, [router, passcodeVerified])
+
+  // ==========================================
+  // Refresh pending verifications count
+  // ==========================================
+  const refreshPendingVerifications = async () => {
+    const { count } = await supabase
+      .from('verify')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+
+    if (count !== null) {
+      setPendingVerifications(count)
+    }
+  }
 
   const handleSignOut = async () => {
     sessionStorage.removeItem(SESSION_KEY)
@@ -218,6 +248,8 @@ export default function AdminPage() {
         return <DashboardOverview />
       case 'users':
         return <UsersManagement />
+      case 'verifications':
+        return <VerificationManagement />
       case 'vehicles':
         return <ListingManagement />
       case 'vehiclelist':
@@ -380,8 +412,12 @@ export default function AdminPage() {
                       onClick={() => {
                         setActiveSection(item.id)
                         setIsMobileMenuOpen(false)
+                        // Refresh pending verifications when clicking verify
+                        if (item.id === 'verifications') {
+                          refreshPendingVerifications()
+                        }
                       }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap relative ${
                         isActive
                           ? 'bg-red-500/20 text-red-400'
                           : 'text-white/60 hover:bg-white/5 hover:text-white'
@@ -389,9 +425,9 @@ export default function AdminPage() {
                     >
                       <Icon className="w-3.5 h-3.5" />
                       {item.label}
-                      {item.badge && item.badge > 0 && (
-                        <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] rounded-full">
-                          {item.badge}
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className="px-1.5 py-0.5 bg-red-500 text-white text-[8px] rounded-full min-w-[16px] text-center">
+                          {item.badge > 99 ? '99+' : item.badge}
                         </span>
                       )}
                     </button>
@@ -446,7 +482,7 @@ export default function AdminPage() {
 
             {/* Mobile Menu */}
             {isMobileMenuOpen && (
-              <div className="lg:hidden pt-2 border-t border-white/5 mt-2">
+              <div className="lg:hidden pt-2 border-t border-white/5 mt-2 max-h-[calc(100vh-120px)] overflow-y-auto">
                 <nav className="flex flex-col gap-0.5">
                   {navItems.map((item) => {
                     const isActive = activeSection === item.id
@@ -457,6 +493,10 @@ export default function AdminPage() {
                         onClick={() => {
                           setActiveSection(item.id)
                           setIsMobileMenuOpen(false)
+                          // Refresh pending verifications when clicking verify
+                          if (item.id === 'verifications') {
+                            refreshPendingVerifications()
+                          }
                         }}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                           isActive
@@ -466,9 +506,9 @@ export default function AdminPage() {
                       >
                         <Icon className="w-4 h-4" />
                         {item.label}
-                        {item.badge && item.badge > 0 && (
+                        {item.badge !== undefined && item.badge > 0 && (
                           <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-[8px] rounded-full">
-                            {item.badge}
+                            {item.badge > 99 ? '99+' : item.badge}
                           </span>
                         )}
                       </button>
