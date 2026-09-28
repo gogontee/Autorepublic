@@ -20,7 +20,8 @@ import {
   BarChart3,
   ChevronDown,
   Pointer,
-  Sparkles
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react'
 import Header from '@/components/Header'
 import BottomNav from '@/components/BottomNav'
@@ -93,6 +94,9 @@ export default function DashboardPage() {
 
   // Get user ID from URL
   const userId = params?.id as string
+
+  // ✅ Check if user is admin
+  const isAdmin = userProfile?.role === 'admin'
 
   // ✅ AUTH CHECK — uses getUser() (server-verified) + onAuthStateChange safety net
   useEffect(() => {
@@ -228,8 +232,6 @@ export default function DashboardPage() {
   }, [])
 
   // ✅ WATCH FOR ?tab= CHANGES WHEN THE COMPONENT IS ALREADY MOUNTED
-  // This handles the case where the user is already on the dashboard
-  // and something pushes a new ?tab= to the same route.
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -346,6 +348,12 @@ export default function DashboardPage() {
   const handleDismissOnboarding = () => {
     setShowOnboarding(false)
     localStorage.setItem(ONBOARDING_SHOWN_KEY, 'true')
+  }
+
+  // ✅ Handle admin panel navigation
+  const handleAdminPanel = () => {
+    setIsMobileMenuOpen(false)
+    router.push('/admin')
   }
 
   const userData = {
@@ -555,6 +563,20 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+
+            {/* Admin Panel Button - Only visible for admins */}
+            {isAdmin && (
+              <div className="mt-3 pt-3 border-t border-white/5">
+                <button
+                  onClick={handleAdminPanel}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left bg-gradient-to-r from-red-500/20 to-red-600/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-red-500/10 group"
+                >
+                  <ShieldCheck className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <span className="font-semibold">Admin Panel</span>
+                  <Sparkles className="w-3 h-3 ml-auto text-red-400/60 group-hover:text-red-400 transition-colors" />
+                </button>
+              </div>
+            )}
           </nav>
 
           <div className="p-4 border-t border-white/5">
@@ -673,6 +695,20 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+
+            {/* Admin Panel Button - Mobile - Only visible for admins */}
+            {isAdmin && (
+              <div className="mt-3 pt-3 border-t border-white/5">
+                <button
+                  onClick={handleAdminPanel}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left bg-gradient-to-r from-red-500/20 to-red-600/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 active:scale-[0.98] shadow-lg shadow-red-500/10"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="font-semibold">Admin Panel</span>
+                  <Sparkles className="w-3 h-3 ml-auto text-red-400/60" />
+                </button>
+              </div>
+            )}
 
             <div className="border-t border-white/5 my-2 pt-2">
               <div className="flex items-center gap-3 px-3 py-2">
