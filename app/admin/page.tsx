@@ -25,6 +25,7 @@ import {
   AlertCircle,
   KeyRound,
   ShieldCheck,
+  ArrowLeft,
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -242,6 +243,17 @@ export default function AdminPage() {
     router.push('/auth/login')
   }
 
+  // ==========================================
+  // Navigate back to user dashboard
+  // ==========================================
+  const handleBackToDashboard = () => {
+    if (user?.id) {
+      router.push(`/dashboard/${user.id}`)
+    } else {
+      router.push('/')
+    }
+  }
+
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
@@ -437,6 +449,16 @@ export default function AdminPage() {
 
               {/* Right Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Back to Dashboard - Desktop */}
+                <button
+                  onClick={handleBackToDashboard}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white/60 hover:bg-white/5 hover:text-white border border-white/5 hover:border-white/10"
+                  title="Back to Dashboard"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Dashboard</span>
+                </button>
+
                 <button
                   onClick={() => {
                     setActiveSection('notifications')
@@ -514,6 +536,19 @@ export default function AdminPage() {
                       </button>
                     )
                   })}
+
+                  {/* Back to Dashboard - Mobile */}
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false)
+                      handleBackToDashboard()
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white transition-all w-full text-left border-t border-white/5 mt-2 pt-3"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to Dashboard
+                  </button>
+
                   <button
                     onClick={handleSignOut}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-all w-full text-left"
