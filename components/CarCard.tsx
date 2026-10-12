@@ -21,6 +21,7 @@ interface CarCardProps {
     cover_image?: string
     images?: string[]
     location: string
+    city?: string
     condition?: string
     conditionLabel?: string
     brand?: string
@@ -74,8 +75,8 @@ export default function CarCard({ car, index }: CarCardProps) {
   // Get the condition label
   const conditionLabel = car.conditionLabel || (car.condition ? getConditionLabel(car.condition) : null)
   
-  // Format location
-  const displayLocation = car.location || 'Location Unknown'
+  // Render the full city name (vehicles.city), fall back to location if city is missing
+  const displayLocation = car.city || car.location || 'Location Unknown'
 
   // Check if vehicle is on distress sale
   const isDistress = car.distress === true
@@ -405,51 +406,53 @@ export default function CarCard({ car, index }: CarCardProps) {
         </div>
         
         <div className="p-2.5 sm:p-4">
-          <div className="flex items-start justify-between mb-1 sm:mb-2">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-xs sm:text-base font-semibold text-white/90 truncate group-hover:text-white transition-colors">
-                {displayName}
-              </h3>
-              <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-[10px] sm:text-sm text-white/60">{car.year}</p>
-                {car.car_code && (
-                  <>
-                    <span className="text-[8px] sm:text-[10px] text-white/20">•</span>
-                    <div className="flex items-center gap-0.5">
-                      <Tag className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-red-400" />
-                      <p className="text-[8px] sm:text-[10px] font-mono text-red-400">{car.car_code}</p>
-                    </div>
-                  </>
-                )}
-                {/* Distress indicator - small badge next to year */}
-                {isDistress && (
-                  <>
-                    <span className="text-[8px] sm:text-[10px] text-white/20">•</span>
-                    <span className="flex items-center gap-0.5 text-[8px] sm:text-[10px] text-red-400 font-medium">
-                      <Gavel className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                      Distress
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-            <p className="text-sm sm:text-xl font-bold text-red-500 whitespace-nowrap ml-2">
-              {displayPrice}
-            </p>
+          {/* Title on its own line */}
+          <h3 className="text-xs sm:text-base font-semibold text-white/90 truncate group-hover:text-white transition-colors mb-1">
+            {displayName}
+          </h3>
+
+          {/* Year + code + distress row */}
+          <div className="flex items-center gap-2 mb-1.5">
+            <p className="text-[10px] sm:text-sm text-white/60">{car.year}</p>
+            {car.car_code && (
+              <>
+                <span className="text-[8px] sm:text-[10px] text-white/20">•</span>
+                <div className="flex items-center gap-0.5">
+                  <Tag className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-red-400" />
+                  <p className="text-[8px] sm:text-[10px] font-mono text-red-400">{car.car_code}</p>
+                </div>
+              </>
+            )}
+            {/* Distress indicator - small badge next to year */}
+            {isDistress && (
+              <>
+                <span className="text-[8px] sm:text-[10px] text-white/20">•</span>
+                <span className="flex items-center gap-0.5 text-[8px] sm:text-[10px] text-red-400 font-medium">
+                  <Gavel className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  Distress
+                </span>
+              </>
+            )}
           </div>
+
+          {/* Price on its own line */}
+          <p className="text-sm sm:text-xl font-bold text-red-500 mb-2">
+            {displayPrice}
+          </p>
           
+          {/* Specs row — location is NOT truncated and NOT allowed to shrink */}
           <div className="flex items-center gap-2 sm:gap-4 text-[9px] sm:text-sm text-white/60 flex-wrap">
-            <span className="flex items-center gap-0.5 sm:gap-1">
-              <Gauge className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-              {car.mileage || 'N/A'}
+            <span className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+              <Gauge className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+              <span className="whitespace-nowrap">{car.mileage || 'N/A'}</span>
             </span>
-            <span className="flex items-center gap-0.5 sm:gap-1">
-              <Fuel className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-              {fuelType}
+            <span className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+              <Fuel className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+              <span className="whitespace-nowrap">{fuelType}</span>
             </span>
-            <span className="flex items-center gap-0.5 sm:gap-1">
-              <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-              <span className="truncate max-w-[60px] sm:max-w-none">{displayLocation}</span>
+            <span className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+              <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+              <span className="whitespace-nowrap">{displayLocation}</span>
             </span>
           </div>
 

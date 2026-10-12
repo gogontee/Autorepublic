@@ -229,13 +229,12 @@ function VehiclesContent() {
     }
   }, [isRestoringState])
 
-  // Format location
+  // Format location — FIXED: no more splitting on spaces
   const formatLocation = (city: string, country: string) => {
     if (!city && !country) return 'Location Unknown'
     let location = ''
     if (city) {
-      const cityFirstWord = city.split(' ')[0]
-      location += cityFirstWord
+      location += city // full city name, preserve multi-word cities like "Amuwo Odofin"
     }
     if (country) {
       const countryAbbr = country.slice(0, 2).toUpperCase()
@@ -1132,7 +1131,9 @@ function VehiclesContent() {
                           transmission: car.transmission,
                           cover_image: car.cover_image,
                           images: car.images,
-                          location: car.location || formatLocation(car.city, car.country),
+                          // FIXED: pass both the formatted location and raw city
+                          location: car.location || car.city || 'Location Unknown',
+                          city: car.city,
                           conditionLabel: car.conditionLabel || getConditionLabel(car.condition),
                           condition: car.condition,
                           car_code: car.car_code || undefined,
