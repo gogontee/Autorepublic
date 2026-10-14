@@ -630,7 +630,7 @@ export default function Edit({ vehicleId, onClose, onSuccess, onReturnToStore }:
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-32 md:pb-16">
       {/* Success Modal - Center Screen Popup */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
@@ -1227,7 +1227,8 @@ export default function Edit({ vehicleId, onClose, onSuccess, onReturnToStore }:
           </div>
         </div>
 
-        <div className="flex gap-3">
+        {/* Action Buttons with extra bottom padding on mobile */}
+        <div className="flex gap-3 pb-24 md:pb-6">
           {onClose && (
             <button
               type="button"
