@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, 
@@ -291,10 +291,7 @@ export default function VehicleFilter({
   }: any) => {
     const isExpanded = expandedSections.includes(section)
     const hasValue = value && value !== ''
-    const filteredOptions = useMemo(() => 
-      getFilteredOptions(options, searchValue),
-      [options, searchValue, getFilteredOptions]
-    )
+    const filteredOptions = getFilteredOptions(options, searchValue)
 
     const handleOptionSelect = (option: string) => {
       onChange(option)

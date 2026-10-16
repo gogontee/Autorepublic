@@ -115,10 +115,6 @@ export default function ComparisonTable({
   const [showLeftArrow, setShowLeftArrow] = useState(false)
   const [showRightArrow, setShowRightArrow] = useState(true)
 
-  if (vehicles.length === 0) {
-    return null
-  }
-
   // Ensure we always have 3 vehicles (pad with null if needed)
   const paddedVehicles: (Vehicle | null)[] = [...vehicles]
   while (paddedVehicles.length < 3) {
@@ -157,6 +153,10 @@ export default function ComparisonTable({
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' })
     }
+  }
+
+  if (vehicles.length === 0) {
+    return null
   }
 
   return (

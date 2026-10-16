@@ -149,6 +149,7 @@ export default function VehicleDetailContent({
 
   // Get current user
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // Touch swipe refs
   const touchStartX = useRef(0)
@@ -158,9 +159,26 @@ export default function VehicleDetailContent({
   // Get current user
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user) return
+
         setCurrentUser(session.user)
+
+        const { data: profile, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single()
+
+        if (error) {
+          console.error('Error checking admin role:', error)
+          return
+        }
+
+        setIsAdmin(profile?.role === 'admin')
+      } catch (err) {
+        console.error('Error getting current user:', err)
       }
     }
     getCurrentUser()
@@ -793,6 +811,7 @@ export default function VehicleDetailContent({
 
   // Check if current user is the vehicle owner
   const isOwner = currentUser?.id === vehicle?.user_id
+  const canViewVin = isOwner || isAdmin
 
   // Loading state
   if (loading) {
@@ -1179,7 +1198,7 @@ export default function VehicleDetailContent({
                     </div>
                   )}
                   
-                  {vehicle.vin && (
+                  {canViewVin && vehicle.vin && (
                     <div className={`bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5 hover:border-white/10 transition-all flex flex-col items-center justify-center text-center min-h-[70px] ${!vehicle.engine_type ? 'sm:col-span-2' : ''}`}>
                       <div className="flex items-center justify-center gap-1.5 mb-1.5">
                         <Hash className="w-4 h-4 text-red-400" />
